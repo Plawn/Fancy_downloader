@@ -10,7 +10,8 @@ import time
 
 import requests
 
-from . import aux, download_methods, status
+from . import aux, download_methods
+from . import constants as status
 
 __version__ = 0.2
 
@@ -83,6 +84,7 @@ class Download:
         self.dump_directory = kwargs.get('dump_directory', '')
         self.origin_url = kwargs.get('origin', '')
         self.user_agent = kwargs.get('user_agent', User_Agent)
+
 
         # download method handling
         download_method_str = kwargs.get('type')

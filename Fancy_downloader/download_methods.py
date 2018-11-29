@@ -5,10 +5,8 @@ import requests
 
 from . import Fancy_downloader as dl
 from . import aux
+from . import constants
 
-SUCCESS_CODES = (200, 206)
-RETRY_SLEEP_TIME = 0.3
-MAX_RETRY = 10
 
 
 def get_and_retry(url, split='', d_obj=None):
@@ -16,15 +14,15 @@ def get_and_retry(url, split='', d_obj=None):
     while not done:
         header['Range'] = 'bytes={}'.format(split)
         response = requests.get(url, headers=header, stream=True)
-
-        if response.status_code in SUCCESS_CODES:
+        
+        if response.status_code in constants.SUCCESS_CODES:
             done = True
             return response
         else:
             errors += 1
             print("error retrying | error code {}".format(response.status_code))
-            time.sleep(RETRY_SLEEP_TIME)
-            if errors == MAX_RETRY:
+            time.sleep(constants.RETRY_SLEEP_TIME)
+            if errors == constants.MAX_RETRY:
                 print('Download canceled')
                 d_obj.has_error = True
                 d_obj.stop()
