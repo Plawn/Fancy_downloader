@@ -34,9 +34,6 @@ def get_chunk(url, split, d_obj):
     l = split.split('-')
     response = get_and_retry(url, split, d_obj)
     at = int(l[0])
-    # print('new chunk')
-    # print(split)
-
     for data in response.iter_content(chunk_size=d_obj.chunk_size):
         if not d_obj.is_stopped():
 
@@ -64,9 +61,7 @@ def serial_chunked_download(d_obj, end_action=None, start=0, end=0):
     else:
         nb_split = int(d_obj.size / d_obj.split_size) + 1
         splits = aux.sm_split(end - start, nb_split, start)
-    # print('from {}-{} lvl 2 {}'.format(start, end, splits))
     for split in splits:
-        # print('getting split', split)
         get_chunk(d_obj.url, split, d_obj)
         if d_obj.has_error or d_obj.is_stopped():
             print('has error')
@@ -142,14 +137,10 @@ def serial_parralel_chunked_download(d_obj, end_action=None):
     """
     d_obj.init_size()
     size = d_obj.size
-    # splits = aux.sm_split(size, d_obj.nb_split)
     splits = aux.sm_split(size, d_obj.nb_split)
     threads = []
     d_obj.init_file()
-    # print('splits are', splits)
-    # print('size is', size)
     end_action1 = None
-    # print('lvl 1 split', splits)
     for split in splits:
         l = split.split('-')
 
