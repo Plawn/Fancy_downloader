@@ -1,3 +1,0 @@
-# todo
-
-* update logging capability
