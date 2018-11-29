@@ -10,12 +10,16 @@
 
 ```python
 	import Fancy_Downloader as dl
-	d = dl.Download(url=url, type="serial_chunked", verbose=True) #verbose requeries the Fancy_Progressbar lib
+	d = dl.Download(url=url, type="serial_chunked") #verbose requeries the Fancy_Progressbar lib
 	dl.download(d)
 	
 ```
-#[Methods available]
+#[Download types available]
 
+* serial_chunked
+* basic
+* parrarel_chunked
+* serial_parralel_chunked
 
 ```python
 	
