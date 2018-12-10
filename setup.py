@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
 name='Fancy_downloader',
-version='0.15',
+version='0.16',
 description='Download files in an easier way',
 packages = ['Fancy_downloader'],
 url='https://github.com/Plawn/Fancy_Downloader',
