@@ -8,7 +8,6 @@ from . import aux
 from . import constants
 
 
-
 def get_and_retry(url, split='', d_obj=None):
     header, done, errors = {}, False, 0
     while not done:
@@ -36,7 +35,6 @@ def get_chunk(url, split, d_obj):
     at = int(l[0])
     for data in response.iter_content(chunk_size=d_obj.chunk_size):
         if not d_obj.is_stopped():
-
             at = d_obj.write_at(at, data)
             if d_obj.is_paused():
                 d_obj.event.wait(d_obj.pause_time)
@@ -88,6 +86,7 @@ def parralel_chunked_download(d_obj, end_action=None):
         threads.append(t)
     for t in threads:
         t.join()
+    
     if d_obj.has_error:
         return False
     if end_action != None:
@@ -108,29 +107,6 @@ def basic_download(d_obj, end_action=None):
     d_obj.finish()
     return True
 
-
-# def basic_download(d_obj, end_action=None):
-#     """Downloads a file using a single connection in a single chunk
-#     """
-#     d_obj.init_size()
-#     # response = get_and_retry(d_obj.url, "{}-{}".format(0, d_obj.size), d_obj)
-#     # f = open(d_obj.filename(), 'wb')
-#     d_obj.init_file()
-#     # for data in response.iter_content(chunk_size=d_obj.chunk_size):
-#     #     if not d_obj.is_stopped():
-#     #         f.write(data)
-#     #         d_obj.progress[0] += d_obj.chunk_size
-#     #         if d_obj.is_paused():
-#     #             d_obj.event.wait(d_obj.pause_time)
-#     #     else:
-#     #         return False
-#     # f.close()
-#     get_chunk(d_obj.url, "{}-{}".format(0, d_obj.size), d_obj)
-
-#     if end_action != None:
-#         end_action()
-#     d_obj.finish()
-#     return True
 
 def serial_parralel_chunked_download(d_obj, end_action=None):
     """Downloads a file using multiple connections and multiple chunks per connection

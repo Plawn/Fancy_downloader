@@ -1,4 +1,4 @@
-[Latest Version = 0.14]
+[Latest Version = 0.15]
 
 ##[Installation]
 
@@ -24,15 +24,14 @@
 # Objects available
 
 ```python
-	Download
-	Download_container
-	Action
+	Download()
+	Download_container()
+	Action(func, *args)
 
 ```
 #[Functions available]
 ```python
-	#download(Download_objet)
+	download(Download_objet) #deprecated
 
 ```
 
-This library is compatible with the Fancy_progressbar library

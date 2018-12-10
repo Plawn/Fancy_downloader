@@ -119,6 +119,7 @@ class Download:
         size = 0
         while size == 0:
             size, p = aux.url_size(self.url)
+            print(size)
             if size != 0:
                 continue
             print('getting size failed | error {} | -> retrying'.format(p))
@@ -154,6 +155,7 @@ class Download:
     def finish(self):
         self.finished, self.progress = True, [self.size]
         self.status = status.FINISHED
+        self.file.close()
 
     def update(self, progress): self.progress[0] = progress
 
