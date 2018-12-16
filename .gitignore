@@ -3,3 +3,6 @@ Fancy_downloader/.vscode
 Fancy_downloader/__pycache__/
 To_do.md
 upgrade.sh
+.DS_Store
+*.DS_Store*
+
