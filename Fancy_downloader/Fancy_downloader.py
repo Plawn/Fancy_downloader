@@ -10,7 +10,8 @@ import time
 
 import requests
 
-from . import aux, download_methods
+from . import aux_func as aux
+from . import download_methods
 from . import constants as status
 
 __version__ = 0.2
@@ -63,7 +64,7 @@ class Download:
         self.progress = [0]
         self.resumable = kwargs.get('resumable', False)
         self.size = -1
-
+        self.session = kwargs.get('session')
         self.paused = [False]
         self.stopped = [False]
         self.finished = False
@@ -84,7 +85,7 @@ class Download:
         self.dump_directory = kwargs.get('dump_directory', '')
         self.origin_url = kwargs.get('origin', '')
         self.user_agent = kwargs.get('user_agent', User_Agent)
-
+        self.on_end = kwargs.get('on_end')
 
         # download method handling
         download_method_str = kwargs.get('type')
@@ -117,9 +118,8 @@ class Download:
 
     def init_size(self):
         size = 0
-        while size == 0:
-            size, p = aux.url_size(self.url)
-            print(size)
+        while size == 0 and not self.stopped[0]:
+            size, p = aux.url_size(self.url, self.session)
             if size != 0:
                 continue
             print('getting size failed | error {} | -> retrying'.format(p))
@@ -167,6 +167,7 @@ class Download:
 
     def stop(self):
         self.status = status.STOPPED
+        self.stopped[0] = True
         self.event.set()
 
     def get_speed(self):
@@ -195,9 +196,9 @@ class Download:
                 indent=4
             ))
 
-    def set_download_folder(self, name): self.download_folder = name
+    def set_download_folder(self, name:str): self.download_folder = name
 
-    def set_filename(self, name): self._filename = name
+    def set_filename(self, name:str): self._filename = name
 
     def set_dump_dir(self, name): pass
 
@@ -209,7 +210,7 @@ class Download:
             self._filename = self._filename.replace(char, '')
 
     def download(self, action=None):
-        self.download_method(self, action)
+        self.download_method(self, action, self.session)
 
     def write_at(self, at, data):
         with self.lock:
