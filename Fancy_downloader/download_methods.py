@@ -4,34 +4,34 @@ import time
 import requests
 
 from . import Fancy_downloader as dl
-from . import aux_func as aux
-from . import constants
+from . import utils
+from . import tokens
 
 
 def get_and_retry(url, split='', d_obj=None, session=None):
-    header, done, errors = {}, False, 0
+    headers = {
+        'Range':f'bytes={split}'
+    }
+    done = False
+    errors = 0
+    requester = session if session is not None else requests
     while not done:
-        header['Range'] = 'bytes={}'.format(split)
-        response = None 
-        if session == None:
-            response = requests.get(url, headers=header, stream=True)
-        else :
-            response = session.get(url, headers=header, stream=True)
-        if response.status_code in constants.SUCCESS_CODES:
+        response = session.get(url, headers=headers, stream=True)
+        if response.status_code < 300:
             done = True
             return response
         else:
             errors += 1
             print("error retrying | error code {}".format(response.status_code))
-            time.sleep(constants.RETRY_SLEEP_TIME)
-            if errors == constants.MAX_RETRY:
+            time.sleep(tokens.RETRY_SLEEP_TIME)
+            if errors == tokens.MAX_RETRY:
                 print('Download canceled')
                 d_obj.has_error = True
                 d_obj.stop()
                 raise Exception("Error max retry")
 
 
-def get_chunk(url, split, d_obj, session=None):
+def get_chunk(url:str, split, d_obj, session=None):
     l = split.split('-')
     response = get_and_retry(url, split, d_obj, session)
     at = int(l[0])
@@ -57,10 +57,10 @@ def serial_chunked_download(d_obj, end_action=None, session=None, start=0, end=0
             nb_split = int(d_obj.size / d_obj.split_size) + 1
         else:
             nb_split = d_obj.nb_split
-        splits = aux.sm_split(d_obj.size, nb_split)
+        splits = utils.sm_split(d_obj.size, nb_split)
     else:
         nb_split = int(d_obj.size / d_obj.split_size) + 1
-        splits = aux.sm_split(end - start, nb_split, start)
+        splits = utils.sm_split(end - start, nb_split, start)
     
     for split in splits:
         get_chunk(d_obj.url, split, d_obj, session)
@@ -80,7 +80,7 @@ def parralel_chunked_download(d_obj, end_action=None):
     """Downloads a file using multiple connections
     """
     d_obj.init_size()
-    splits = aux.sm_split(d_obj.size, d_obj.nb_split)
+    splits = utils.sm_split(d_obj.size, d_obj.nb_split)
     threads = []
     d_obj.init_file()
     for split in splits:
@@ -104,7 +104,7 @@ def basic_download(d_obj, end_action=None, session=None):
     d_obj.init_size()
     d_obj.init_file()
 
-    get_chunk(d_obj.url, "{}-{}".format(0, d_obj.size), d_obj, session)
+    get_chunk(d_obj.url, f"{0}-{d_obj.size}", d_obj, session)
     if end_action != None:
         end_action()
     d_obj.finish()
@@ -116,7 +116,7 @@ def serial_parralel_chunked_download(d_obj, end_action=None, session=None):
     """
     d_obj.init_size()
     size = d_obj.size
-    splits = aux.sm_split(size, d_obj.nb_split)
+    splits = utils.sm_split(size, d_obj.nb_split)
     threads = []
     d_obj.init_file()
     end_action1 = None

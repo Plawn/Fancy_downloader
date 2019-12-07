@@ -1,4 +1,5 @@
 import requests
+from typing import Tuple, List, Dict
 
 
 class Action:
@@ -17,18 +18,15 @@ End_action = Action
 Begin_action = Action
 
 
-def url_size(url, session):
-    r = None
-    if session == None:
-        r = requests.head(url, headers={'Accept-Encoding': 'identity'})
-    else:
-        r = session.head(url, headers={'Accept-Encoding': 'identity'})
-    return(int(r.headers.get('content-length', 0)), r)
+def get_size(url: str, session: requests.Session = None) -> Tuple[int, requests.Request]:
+    requester = session if session is not None else requests
+    r = requester.head(url, headers={'Accept-Encoding': 'identity'})
+    return (int(r.headers.get('content-length', 0)), r)
 
 
-def sm_split(sizeInBytes, numsplits, offset=0):
+def sm_split(sizeInBytes: int, numsplits: int, offset: int = 0) -> List[str]:
     if numsplits <= 1:
-        return ["0-{}".format(sizeInBytes)]
+        return [f"0-{sizeInBytes}"]
     lst = []
     i = 0
     lst.append('%s-%s' % (i + offset, offset + int(round(1 + i *
@@ -39,9 +37,16 @@ def sm_split(sizeInBytes, numsplits, offset=0):
     return lst
 
 
-def extract_nb(string):
-    s = ""
-    for i in string:
-        if i in "0123456789":
-            s += i
-    return(s)
+def extract_int(string: str) -> str:
+    return ''.join(i for i in string if i in '0123456789')
+
+
+
+def prepare_name(url:str) -> str :
+    splited = url.split('/')
+    resized = ''
+    try:
+        resized = splited[-1][:20] + '.' + splited[-1].split('.')[1]
+    except:
+        resized = splited[-1][:30]
+    return resized

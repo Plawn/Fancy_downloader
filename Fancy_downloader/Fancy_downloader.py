@@ -10,15 +10,15 @@ import time
 
 import requests
 
-from . import aux_func as aux
+from . import utils
 from . import download_methods
 from . import constants as status
 
 __version__ = 0.2
 
-Action = aux.Action
-End_action = aux.Action
-Begin_action = aux.Action
+Action = utils.Action
+End_action = utils.Action
+Begin_action = utils.Action
 
 
 CHUNK_SIZE = 65556
@@ -49,24 +49,19 @@ class Download:
 
     """
 
-    def __init__(self, *args, **kwargs):
-        self.url = kwargs.get('url', '')
+    def __init__(self, url: str, name: str, *args, **kwargs):
+        self.url = url
+        self.name = name
+        resized = utils.prepare_name(url)
         self.chunk_size = kwargs.get('chunk_size', 8192)
-        try:
-            resized = self.url.split(
-                "/")[-1][0:20] + '.' + self.url.split("/")[-1].split('.')[1]
-        except:
-            resized = self.url.split("/")[-1][0:30]
         self._filename = kwargs.get('filename', resized)
         self.download_folder = kwargs.get('download_folder', '.')
-        self.name = kwargs.get('name', resized)
+
         self.nb_split = kwargs.get('splits', 5)
         self.progress = [0]
         self.resumable = kwargs.get('resumable', False)
         self.size = -1
         self.session = kwargs.get('session')
-        self.paused = [False]
-        self.stopped = [False]
         self.finished = False
 
         self.speed = 0
@@ -80,7 +75,6 @@ class Download:
         self.type = kwargs.get('type', 'basic')
         self.event = threading.Event()
         self.split_size = kwargs.get('split_size', -1)
-        self.chunks = []
         self.d_ext = "json"
         self.dump_directory = kwargs.get('dump_directory', '')
         self.origin_url = kwargs.get('origin', '')
@@ -106,20 +100,20 @@ class Download:
         self.sanitize()
 
     def __repr__(self):
-        return str({"name": self.name, "url": self.url[0:20] + '...'})
+        return str({"name": self.name, "url": self.url[:20] + '...'})
 
     def init_file(self):
         self.file = open(self.filename(), 'wb')
 
     def _size(self):
         if self.size == 0:
-            return(self.progress[0])
+            return self.progress[0]
         return self.size
 
     def init_size(self):
         size = 0
-        while size == 0 and not self.stopped[0]:
-            size, p = aux.url_size(self.url, self.session)
+        while size == 0 and not self.is_stopped():
+            size, p = utils.url_size(self.url, self.session)
             if size != 0:
                 continue
             print('getting size failed | error {} | -> retrying'.format(p))
@@ -138,13 +132,14 @@ class Download:
             r["origin"] = self.origin_url
         return r
 
-    def get_status(self): return self.status
+    def is_paused(self):
+        return self.status == status.PAUSED
 
-    def is_paused(self): return self.status == status.PAUSED
+    def is_finished(self):
+        return self.finished
 
-    def is_finished(self): return self.finished
-
-    def is_stopped(self): return self.status == status.STOPPED
+    def is_stopped(self):
+        return self.status == status.STOPPED
 
     def get_progression(self):
         try:
@@ -159,11 +154,11 @@ class Download:
 
     def update(self, progress): self.progress[0] = progress
 
-    def pause(self): self.status = status.PAUSED
+    def pause(self):
+        self.status = status.PAUSED
 
-    def resume(self): self.status = status.DOWNLOADING
-
-    def set_start(self): self.status = status.DOWNLOADING
+    def resume(self):
+        self.status = status.DOWNLOADING
 
     def stop(self):
         self.status = status.STOPPED
@@ -179,31 +174,18 @@ class Download:
         return self.speed
 
     def dump_progress(self):  # not working
-        if self.type == "parralel_chunked":
-            return self.chunks
-        return self.progress[0]
+        raise Exception('Broken')
 
     def dump(self):  # not working
-        with open('{}.{}'.format(self.filename(), self.d_ext), 'w') as f:
-            f.write(json.dumps(
-                {
-                    "name": self.name,
-                    "url": self.url,
-                    "size": self.size,
-                    "progress": self.dump_progress(),
-                    "type": self.type,
-                },
-                indent=4
-            ))
+        raise Exception('Broken')
 
-    def set_download_folder(self, name:str): self.download_folder = name
+    @property
+    def filename(self):
+        return os.path.join(self.download_folder, self._filename)
 
-    def set_filename(self, name:str): self._filename = name
-
-    def set_dump_dir(self, name): pass
-
-    def filename(self): return os.path.join(
-        self.download_folder, self._filename)
+    @filename.setter
+    def filename(self, name: str):
+        self._filename = name
 
     def sanitize(self):
         for char in TO_REMOVE:
@@ -242,9 +224,9 @@ class Download_container:
         self.finished = False
         self.done = False
         self.event = threading.Event()
-        self.end1 = aux.End_action(self.add_finished)
+        self.end1 = utils.End_action(self.add_finished)
         self.end_action = kwargs.get('end_action')  # should be and End_action
-        self.begin_action = kwargs.get('begin_action')
+        self.on_start = kwargs.get('begin_action')
         self._filename = kwargs.get('filename', 'file')
         self.paused = [False]
         self.progress = [0]
@@ -273,11 +255,8 @@ class Download_container:
         else:
             return self.size
 
-    def set_download_folder(self, name): self.download_folder = name
-
-    def set_filename(self, name): self._filename = name
-
-    def set_dump_dir(self, name): pass
+    def set_filename(self, name):
+        self._filename = name
 
     def little(self):
         r = {
@@ -340,8 +319,13 @@ class Download_container:
             self.speed += dl.get_speed()
         return self.speed
 
-    def filename(self): return os.path.join(
-        self.download_folder, self.name, self._filename)
+    @property
+    def filename(self):
+        return os.path.join(self.download_folder, self.name, self._filename)
+
+    @filename.setter
+    def filename(self, name: str):
+        self._filename = name
 
     # dump & dump_progress
 
@@ -371,31 +355,33 @@ class Download_container:
             for i in range(len(action.args)):
                 if 'filename' in action.args[i]:
                     action.args[i] = self.downloads[int(
-                        aux.extract_nb(action.args[i]))].filename()
+                        utils.extract_nb(action.args[i]))].filename
                 elif 'output' in action.args[i]:
-                    action.args[i] = self.filename()
+                    action.args[i] = self.filename
                 elif 'self' in action.args[i]:
                     action.args[i] = self
 
-    def _set(self):
+    def _prepare_actions(self):
         for dl in self.downloads:
             self._auto_set(dl)
         self._set1(self.end_action)
-        self._set1(self.begin_action)
+        self._set1(self.on_start)
 
-    def start(self):
+    def _prepare_folder(self):
         try:
             os.mkdir(os.path.join(self.download_folder, self.name))
         except:
             pass
-        self._set()
-        if self.begin_action is not None:
-            self.begin_action()
+
+    def download(self):
+        self._prepare_folder()
+        self._prepare_actions()
+        if self.on_start is not None:
+            self.on_start()
 
         self.dls = len(self.downloads)
         self.statut = status.DOWNLOADING
         for dl in self.downloads:
-            print(dl.filename())
             t = threading.Thread(target=dl.download, args=(self.end1,))
             t.start()
             self.threads.append(t)
@@ -413,39 +399,17 @@ class Download_container:
             t.join()
         self.finish()
 
-    def download(self): self.start()
+    def is_stopped(self):
+        return self.statut == status.STOPPED
 
-    def is_stopped(self): return self.statut == status.STOPPED
+    def is_paused(self):
+        return self.statut == status.PAUSED
 
-    def is_paused(self): return self.statut == status.PAUSED
-
-    def _auto_set(self, d_obj):
+    def _auto_set(self, d_obj: Download):
         d_obj.download_folder = os.path.join(self.download_folder, self.name)
 
-    def append(self, *args, **kwargs):
+    def append(self, *args):
         for dl in args:
             if isinstance(dl, Download):
                 self.downloads.append(dl)
                 self._auto_set(dl)
-        for dl in kwargs.get('list', []):
-            self.downloads.append(dl)
-            self._auto_set(dl)
-
-
-# deprecated just there for compatibility
-def download(d_obj, nb_thread=None, event=None, end_action=None):
-    if isinstance(d_obj, Download):
-        if d_obj.type == 'serial_chunked':
-            download_methods.serial_chunked_download(
-                d_obj, end_action)
-        elif d_obj.type == 'parralel_chunked':
-            download_methods.parralel_chunked_download(
-                d_obj, end_action)
-        elif d_obj.type == 'basic':
-            download_methods.basic_download(
-                d_obj, end_action)
-        elif d_obj.type == 'serial_parralel_chunked':
-            download_methods.serial_parralel_chunked_download(
-                d_obj, end_action)
-    elif isinstance(d_obj, Download_container):
-        d_obj.start()
