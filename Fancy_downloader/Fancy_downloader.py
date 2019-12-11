@@ -7,7 +7,7 @@ import json
 import os
 import threading
 import time
-
+from typing import List, Tuple, Dict
 import requests
 
 from . import utils
@@ -38,18 +38,19 @@ User_Agent = {
 class Download:
     """
     An object which can be downloaded later on :
-    args :
-        url :
-        name : (displayed)
-        type :
-        ---o basic
-        ---o serial_chunked
-        ---o parralel_chunked
-        filename : (name of the file (often name + extension))
 
+    Parameters
+    ---
+        url : str
+        name : str
+        download_type :
+        - basic
+        - serial_chunked
+        - parralel_chunked
+        filename : str
     """
 
-    def __init__(self, url: str, name: str, *args, **kwargs):
+    def __init__(self, url: str, name: str, **kwargs):
         self.url = url
         self.name = name
         resized = utils.prepare_name(url)
@@ -58,11 +59,10 @@ class Download:
         self.download_folder = kwargs.get('download_folder', '.')
 
         self.nb_split = kwargs.get('splits', 5)
-        self.progress = [0]
+        self.progress = 0
         self.resumable = kwargs.get('resumable', False)
         self.size = -1
         self.session = kwargs.get('session')
-        self.finished = False
 
         self.speed = 0
         self.started = False
@@ -71,13 +71,9 @@ class Download:
         self.last = 0
         self.last_time = time.time()
         self.status = ""
-        self.thread_counter = kwargs.get('thread_counter')
         self.type = kwargs.get('type', 'basic')
         self.event = threading.Event()
         self.split_size = kwargs.get('split_size', -1)
-        self.d_ext = "json"
-        self.dump_directory = kwargs.get('dump_directory', '')
-        self.origin_url = kwargs.get('origin', '')
         self.user_agent = kwargs.get('user_agent', User_Agent)
         self.on_end = kwargs.get('on_end')
 
@@ -89,8 +85,8 @@ class Download:
         else:
             raise Exception("str exptected")
         if self.download_method == None:
-            raise Exception("type not available : {} not found\n types are {}".format(
-                download_method_str, list(download_methods.METHODS.keys())))
+            raise Exception(f"""type not available : {download_method_str} not found
+        types are {list(download_methods.METHODS.keys())}""")
 
         self.has_error = False
 
@@ -103,11 +99,11 @@ class Download:
         return str({"name": self.name, "url": self.url[:20] + '...'})
 
     def init_file(self):
-        self.file = open(self.filename(), 'wb')
+        self.file = open(self.filename, 'wb')
 
     def _size(self):
         if self.size == 0:
-            return self.progress[0]
+            return self.progress
         return self.size
 
     def init_size(self):
@@ -136,23 +132,24 @@ class Download:
         return self.status == status.PAUSED
 
     def is_finished(self):
-        return self.finished
+        return self.status == status.FINISHED
 
     def is_stopped(self):
         return self.status == status.STOPPED
 
     def get_progression(self):
         try:
-            return (self.progress[0] / self.size) * 100
+            return (self.progress / self.size) * 100
         except:
             return 0
 
     def finish(self):
-        self.finished, self.progress = True, [self.size]
+        self.progress = self.size
         self.status = status.FINISHED
         self.file.close()
 
-    def update(self, progress): self.progress[0] = progress
+    def update(self, progress):
+        self.progress = progress
 
     def pause(self):
         self.status = status.PAUSED
@@ -167,10 +164,10 @@ class Download:
 
     def get_speed(self):
         if time.time() - self.last_time >= 1:
-            self.speed = (self.progress[0] - self.last) / \
+            self.speed = (self.progress - self.last) / \
                 (time.time() - self.last_time)
             self.last_time = time.time()
-            self.last = self.progress[0]
+            self.last = self.progress
         return self.speed
 
     def dump_progress(self):  # not working
@@ -194,11 +191,11 @@ class Download:
     def download(self, action=None):
         self.download_method(self, action, self.session)
 
-    def write_at(self, at, data):
+    def write_at(self, at: int, data: bytes):
         with self.lock:
             self.file.seek(at)
             self.file.write(data)
-            self.progress[0] += len(data)
+            self.progress += len(data)
         return at + len(data)
 
 
@@ -208,36 +205,33 @@ class Download_container:
         An Action can be executed on start and on end
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, name: str, downloads: List[Download], download_folder='.', *args, **kwargs):
         self.downloads = []
-        downloads = kwargs.get('downloads', [])
-        self.name = kwargs.get('name', 'unnamed')
-        self.size = -1
-        self.url = kwargs.get('url', '')
-        self.progress = 0
-        self.speed = 0
+        self.name = name
+        self.download_folder = download_folder
+
         self.end_func = kwargs.get('end_func')
         self.f_args = kwargs.get('f_args')
-        self.download_folder = kwargs.get('download_folder', '.')
+        self.size = -1
+        self.progress = 0
+        self.speed = 0
+        self.event = threading.Event()
+        self.type = 'Container'
+        self.size_set = False
         self.append(*downloads)
 
         self.finished = False
         self.done = False
-        self.event = threading.Event()
+
         self.end1 = utils.End_action(self.add_finished)
-        self.end_action = kwargs.get('end_action')  # should be and End_action
+        self.end_action = kwargs.get('end_action')
         self.on_start = kwargs.get('begin_action')
         self._filename = kwargs.get('filename', 'file')
-        self.paused = [False]
-        self.progress = [0]
-        self.origin_url = kwargs.get('origin')
         self.threads = []
-        self.type = 'Container'
-        self.size_set = False
+
         self.statut = ''
         self.custom_status = ""
         self.custom_status_act = False
-        self.dls = 0
         self.finishedd = 0
 
         self.sanitize()
@@ -251,25 +245,12 @@ class Download_container:
 
     def _size(self):
         if self.size == 0:
-            return self.progress[0]
+            return self.progress
         else:
             return self.size
 
     def set_filename(self, name):
         self._filename = name
-
-    def little(self):
-        r = {
-            "name": self.name,
-            "url": self.url,
-            "progress": self.get_progression(),
-            "size": self.get_size(),
-            "speed": self.get_speed(),
-            "status": self.get_status(),
-        }
-        if self.origin_url is not None:
-            r.update({"origin": self.origin_url})
-        return r
 
     def set_status(self, string):
         self.custom_status = string
@@ -294,10 +275,10 @@ class Download_container:
         return self.progress
 
     def finish(self):
-        self.finished, self.progress = True, [self.size]
+        self.finished = True
+        self.progress = self.size
         self.statut = status.FINISHED
 
-    # update
     def stop(self):
         self.statut = status.STOPPED
         for dl in self.downloads:
@@ -327,8 +308,6 @@ class Download_container:
     def filename(self, name: str):
         self._filename = name
 
-    # dump & dump_progress
-
     def get_size(self):
         if not self.size_set:
             self.size = 0
@@ -350,22 +329,22 @@ class Download_container:
         self.finishedd += 1
         self.event.set()
 
-    def _set1(self, action):
-        if action is not None:
-            for i in range(len(action.args)):
-                if 'filename' in action.args[i]:
-                    action.args[i] = self.downloads[int(
-                        utils.extract_nb(action.args[i]))].filename
-                elif 'output' in action.args[i]:
-                    action.args[i] = self.filename
-                elif 'self' in action.args[i]:
-                    action.args[i] = self
+    def __prepare_actions(self, *actions: Tuple[Action]):
+        for action in actions:
+            if action is not None:
+                for i in range(len(action.args)):
+                    if 'filename' in action.args[i]:
+                        action.args[i] = self.downloads[int(
+                            utils.extract_nb(action.args[i]))].filename
+                    elif 'output' in action.args[i]:
+                        action.args[i] = self.filename
+                    elif 'self' in action.args[i]:
+                        action.args[i] = self
 
     def _prepare_actions(self):
         for dl in self.downloads:
-            self._auto_set(dl)
-        self._set1(self.end_action)
-        self._set1(self.on_start)
+            self._prepare_download(dl)
+        self.__prepare_actions(self.end_action, self.on_start)
 
     def _prepare_folder(self):
         try:
@@ -379,7 +358,7 @@ class Download_container:
         if self.on_start is not None:
             self.on_start()
 
-        self.dls = len(self.downloads)
+        dls = len(self.downloads)
         self.statut = status.DOWNLOADING
         for dl in self.downloads:
             t = threading.Thread(target=dl.download, args=(self.end1,))
@@ -389,7 +368,7 @@ class Download_container:
 
         while not self.done:
             self.event.wait(60)
-            if self.finishedd == self.dls:
+            if self.finishedd == dls:
                 self.done = True
                 if self.end_action is not None and not self.is_stopped():
                     self.end_action()
@@ -405,11 +384,11 @@ class Download_container:
     def is_paused(self):
         return self.statut == status.PAUSED
 
-    def _auto_set(self, d_obj: Download):
+    def _prepare_download(self, d_obj: Download):
         d_obj.download_folder = os.path.join(self.download_folder, self.name)
 
     def append(self, *args):
         for dl in args:
             if isinstance(dl, Download):
                 self.downloads.append(dl)
-                self._auto_set(dl)
+                self._prepare_download(dl)
