@@ -11,14 +11,11 @@ from typing import List, Tuple, Dict
 import requests
 
 from . import utils
+from .utils import Action
 from . import download_methods
-from . import constants as status
+from . import tokens as status
 
 __version__ = 0.2
-
-Action = utils.Action
-End_action = utils.Action
-Begin_action = utils.Action
 
 
 CHUNK_SIZE = 65556
@@ -50,12 +47,15 @@ class Download:
         filename : str
     """
 
-    def __init__(self, url: str, name: str, **kwargs):
+    def __init__(self, url: str, filename: str, dl_type='basic', name='', **kwargs):
+
         self.url = url
         self.name = name
-        resized = utils.prepare_name(url)
-        self.chunk_size = kwargs.get('chunk_size', 8192)
-        self._filename = kwargs.get('filename', resized)
+        self.type = dl_type
+        self._filename: str = filename
+
+        self.chunk_size: int = kwargs.get('chunk_size', 8192)
+
         self.download_folder = kwargs.get('download_folder', '.')
 
         self.nb_split = kwargs.get('splits', 5)
@@ -66,26 +66,26 @@ class Download:
 
         self.speed = 0
         self.started = False
+        # not used for now
         self.adaptative_chunk_size = kwargs.get('adaptative_chunk_size', False)
         self.pause_time = 1
         self.last = 0
         self.last_time = time.time()
         self.status = ""
-        self.type = kwargs.get('type', 'basic')
+
         self.event = threading.Event()
         self.split_size = kwargs.get('split_size', -1)
         self.user_agent = kwargs.get('user_agent', User_Agent)
         self.on_end = kwargs.get('on_end')
 
         # download method handling
-        download_method_str = kwargs.get('type')
-        if isinstance(download_method_str, str):
+        if isinstance(dl_type, str):
             self.download_method = download_methods.METHODS.get(
-                download_method_str)
+                dl_type)
         else:
             raise Exception("str exptected")
         if self.download_method == None:
-            raise Exception(f"""type not available : {download_method_str} not found
+            raise Exception(f"""type not available : {dl_type} not found
         types are {list(download_methods.METHODS.keys())}""")
 
         self.has_error = False
@@ -96,7 +96,7 @@ class Download:
         self.sanitize()
 
     def __repr__(self):
-        return str({"name": self.name, "url": self.url[:20] + '...'})
+        return f'<Download {self.url}>'
 
     def init_file(self):
         self.file = open(self.filename, 'wb')
@@ -109,7 +109,7 @@ class Download:
     def init_size(self):
         size = 0
         while size == 0 and not self.is_stopped():
-            size, p = utils.url_size(self.url, self.session)
+            size, p = utils.get_size(self.url, self.session)
             if size != 0:
                 continue
             print('getting size failed | error {} | -> retrying'.format(p))

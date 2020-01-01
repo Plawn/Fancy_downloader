@@ -6,46 +6,10 @@ import requests
 from . import Fancy_downloader as dl
 from . import utils
 from . import tokens
+from .utils import get_chunk
 
 
-def get_and_retry(url, split='', d_obj=None, session=None):
-    headers = {
-        'Range':f'bytes={split}'
-    }
-    done = False
-    errors = 0
-    requester = session if session is not None else requests
-    while not done:
-        response = session.get(url, headers=headers, stream=True)
-        if response.status_code < 300:
-            done = True
-            return response
-        else:
-            errors += 1
-            print("error retrying | error code {}".format(response.status_code))
-            time.sleep(tokens.RETRY_SLEEP_TIME)
-            if errors == tokens.MAX_RETRY:
-                print('Download canceled')
-                d_obj.has_error = True
-                d_obj.stop()
-                raise Exception("Error max retry")
-
-
-def get_chunk(url:str, split, d_obj, session=None):
-    l = split.split('-')
-    response = get_and_retry(url, split, d_obj, session)
-    at = int(l[0])
-    for data in response.iter_content(chunk_size=d_obj.chunk_size):
-        if not d_obj.is_stopped():
-            at = d_obj.write_at(at, data)
-            if d_obj.is_paused():
-                d_obj.event.wait(d_obj.pause_time)
-        else:
-            return False
-    return True
-
-
-def serial_chunked_download(d_obj, end_action=None, session=None, start=0, end=0):
+def serial_chunked_download(d_obj, end_action=None, session: requests.Session = None, start=0, end=0):
     """Downloads a file using a single connection getting a chunk at a time
     """
     splits = None
@@ -61,18 +25,16 @@ def serial_chunked_download(d_obj, end_action=None, session=None, start=0, end=0
     else:
         nb_split = int(d_obj.size / d_obj.split_size) + 1
         splits = utils.sm_split(end - start, nb_split, start)
-    
+
     for split in splits:
         get_chunk(d_obj.url, split, d_obj, session)
         if d_obj.has_error or d_obj.is_stopped():
-            print('has error')
             return False
 
     if end_action != None:
         end_action()
     if end == 0 and start == 0:
         d_obj.finish()
-        print('{}-{} is finished'.format(start, end))
     return True
 
 
@@ -80,9 +42,10 @@ def parralel_chunked_download(d_obj, end_action=None):
     """Downloads a file using multiple connections
     """
     d_obj.init_size()
+    d_obj.init_file()
+    
     splits = utils.sm_split(d_obj.size, d_obj.nb_split)
     threads = []
-    d_obj.init_file()
     for split in splits:
         t = threading.Thread(target=get_chunk, args=(d_obj.url, split, d_obj))
         t.start()
@@ -98,7 +61,7 @@ def parralel_chunked_download(d_obj, end_action=None):
     return True
 
 
-def basic_download(d_obj, end_action=None, session=None):
+def basic_download(d_obj, end_action=None, session: requests.Session = None):
     """Downloads a file using a single connection in a single chunk
     """
     d_obj.init_size()
@@ -111,21 +74,22 @@ def basic_download(d_obj, end_action=None, session=None):
     return True
 
 
-def serial_parralel_chunked_download(d_obj, end_action=None, session=None):
+def serial_parralel_chunked_download(d_obj, end_action=None, session: requests.Session = None):
     """Downloads a file using multiple connections and multiple chunks per connection
     """
     d_obj.init_size()
+    d_obj.init_file()
+
     size = d_obj.size
     splits = utils.sm_split(size, d_obj.nb_split)
     threads = []
-    d_obj.init_file()
     end_action1 = None
     for split in splits:
         l = split.split('-')
 
         start, end = int(l[0]), int(l[1])
         t = threading.Thread(target=serial_chunked_download,
-                             args=(d_obj, end_action1, session,start, end))
+                             args=(d_obj, end_action1, session, start, end))
         t.start()
         threads.append(t)
 
