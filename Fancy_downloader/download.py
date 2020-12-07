@@ -31,7 +31,7 @@ class Download:
         url: str,
         filename: str,
         name: str,
-        dl_type='basic',
+        dl_type: download_methods.METHODS = 'basic',
         download_folder: str = '.',
         *,
         chunk_size: int = 8192,
@@ -72,17 +72,7 @@ class Download:
         self.user_agent = user_agent
         self.on_end: Optional[Action] = on_end
 
-        # download method handling
-        if isinstance(dl_type, str):
-            self.download_method = download_methods.methods.get(
-                dl_type)
-        else:
-            raise Exception("str exptected")
-        if self.download_method is None:
-            raise Exception(
-                f"""type not available : {dl_type} not found
-        types are {list(download_methods.methods.keys())}"""
-            )
+        self.download_method = download_methods.get_method(dl_type)
 
         self.has_error: bool = False
 
@@ -143,21 +133,21 @@ class Download:
         self.status = Status.FINISHED
         self.file.close()
 
-    def update(self, progress):
+    def update(self, progress: float) -> None:
         self.progress = progress
 
-    def pause(self):
+    def pause(self) -> None:
         self.status = Status.PAUSED
 
-    def resume(self):
+    def resume(self) -> None:
         self.status = Status.DOWNLOADING
 
-    def stop(self):
+    def stop(self) -> None:
         self.status = Status.STOPPED
         self.stopped[0] = True
         self.event.set()
 
-    def get_speed(self):
+    def get_speed(self) -> float:
         if time.time() - self.last_time >= 1:
             self.speed = (self.progress - self.last) / \
                 (time.time() - self.last_time)
@@ -172,19 +162,20 @@ class Download:
         raise Exception('Broken')
 
     @property
-    def filename(self):
+    def filename(self) -> str:
         return os.path.join(self.download_folder, self._filename)
 
     @filename.setter
-    def filename(self, name: str):
+    def filename(self, name: str) -> None:
         self._filename = name
 
-    def sanitize(self):
+    def sanitize(self) -> None:
         for char in TO_REMOVE:
             self._filename = self._filename.replace(char, '')
 
-    def download(self, action=None):
+    def download(self, action: Optional[Action] = None):
         self.download_method(self, action, self.session)
+        # self.download_method(self, action, self.session)
 
     def write_at(self, at: int, data: bytes):
         with self.lock:

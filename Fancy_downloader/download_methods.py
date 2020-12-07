@@ -1,15 +1,15 @@
 from __future__ import annotations
+
 import threading
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, Optional
 
 import requests
 
-from . import Fancy_downloader as dl
-from . import tokens, utils
-
+from . import utils
 from .utils import Action, Split, get_chunk
+
 if TYPE_CHECKING:
-    from .Fancy_downloader import Download
+    from .download_container import Download
 
 
 def serial_chunked_download(

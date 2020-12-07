@@ -7,7 +7,7 @@ from functools import lru_cache
 import requests
 
 if TYPE_CHECKING:
-    from .Fancy_downloader import Download
+    from .download_container import Download
 
 RETRY_SLEEP_TIME = 0.3
 MAX_RETRY = 10
