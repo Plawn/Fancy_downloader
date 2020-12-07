@@ -3,7 +3,7 @@
 
 [Latest Version = 0.16]
 
-##[Installation]
+## [Installation]
 
 ```shell
 	pip install Fancy_Downloader

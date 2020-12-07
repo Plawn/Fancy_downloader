@@ -1,9 +1,16 @@
-import requests
-from typing import Tuple, List, Dict
+from __future__ import annotations
+
 import time
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+from functools import lru_cache
+import requests
+
+from .Fancy_downloader import Download
 
 RETRY_SLEEP_TIME = 0.3
 MAX_RETRY = 10
+
 
 class Action:
     """
@@ -14,25 +21,36 @@ class Action:
         self.function = func
         self.args = [*args]
 
-    def __call__(self): self.function(*self.args)
+    def __call__(self):
+        self.function(*self.args)
 
 
-def get_size(url: str, session: requests.Session = None) -> Tuple[int, requests.Request]:
-    requester = session if session is not None else requests
+@dataclass
+class Split:
+    start: int
+    end: int
+
+    @lru_cache()
+    def as_range(self):
+        return f'{self.start}-{self.end}'
+
+
+def get_size(url: str, session: Optional[requests.Session] = None) -> Tuple[int, requests.Request]:
+    requester = session or requests
     r = requester.head(url, headers={'Accept-Encoding': 'identity'})
     return (int(r.headers.get('content-length', 0)), r)
 
 
-def sm_split(sizeInBytes: int, numsplits: int, offset: int = 0) -> List[str]:
+def sm_split(sizeInBytes: int, numsplits: int, offset: int = 0) -> List[Split]:
     if numsplits <= 1:
         return [f"0-{sizeInBytes}"]
     lst = []
     i = 0
-    lst.append('%s-%s' % (i + offset, offset + int(round(1 + i *
-                                                         sizeInBytes/(numsplits*1.0) + sizeInBytes/(numsplits*1.0)-1, 0))))
+    lst.append(Split(i + offset, offset + int(round(1 + i *
+                                                    sizeInBytes/(numsplits*1.0) + sizeInBytes/(numsplits*1.0)-1, 0))))
     for i in range(1, numsplits):
-        lst.append('%s-%s' % (offset + int(round(1 + i * sizeInBytes/(numsplits*1.0), 1)), offset +
-                              int(round(1 + i * sizeInBytes/(numsplits*1.0) + sizeInBytes/(numsplits*1.0)-1, 0))))
+        lst.append(Split(offset + int(round(1 + i * sizeInBytes/(numsplits*1.0), 1)), offset +
+                         int(round(1 + i * sizeInBytes/(numsplits*1.0) + sizeInBytes/(numsplits*1.0)-1, 0))))
     return lst
 
 
@@ -40,8 +58,7 @@ def extract_int(string: str) -> str:
     return ''.join(i for i in string if i in '0123456789')
 
 
-
-def prepare_name(url:str) -> str :
+def prepare_name(url: str) -> str:
     splited = url.split('/')
     resized = ''
     try:
@@ -51,13 +68,13 @@ def prepare_name(url:str) -> str :
     return resized
 
 
-def get_and_retry(url, split='', d_obj=None, session: requests.Session = None):
+def get_and_retry(url: str, split: Split, d_obj: Optional[Download] = None, session: Optional[requests.Session] = None):
     headers = {
-        'Range': f'bytes={split}'
+        'Range': f'bytes={split.as_range()}'
     }
     done = False
     errors = 0
-    requester = session if session is not None else requests
+    requester = session or requests
     while not done:
         response = requester.get(url, headers=headers, stream=True)
         if response.status_code < 300:
@@ -75,10 +92,14 @@ def get_and_retry(url, split='', d_obj=None, session: requests.Session = None):
                 raise Exception("Error max retry")
 
 
-def get_chunk(url: str, split, d_obj, session: requests.Session = None):
-    l = split.split('-')
+def get_chunk(
+    url: str,
+    split: Split,
+    d_obj: Download,
+    session: Optional[requests.Session] = None
+) -> bool:
     response = get_and_retry(url, split, d_obj, session)
-    at = int(l[0])
+    at = split.start
     for data in response.iter_content(chunk_size=d_obj.chunk_size):
         if not d_obj.is_stopped():
             at = d_obj.write_at(at, data)

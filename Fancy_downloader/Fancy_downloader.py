@@ -3,200 +3,18 @@ Lib making downloading file easy
 """
 
 
-import json
 import os
 import threading
 import time
-from typing import List, Tuple, Dict
-import requests
+from typing import Dict, List, Optional, Tuple
 
-from . import utils
+from . import download_methods, utils
+from .constants import TIME_BETWEEN_DL_START, TO_REMOVE
+from .download import Download
+from .tokens import Status
 from .utils import Action
-from . import download_methods
-from . import tokens as status
-
-__version__ = 0.2
-
-
-CHUNK_SIZE = 65556
-MAX_RETRY = 10
-TIME_BETWEEN_DL_START = 0.1
-SUCCESS_CODES = (200, 206)
-TO_REMOVE = (',', ';', '&', "'", '/', ')', '(')
-
-User_Agent = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
-}
-
 
 # # # # # # # # # # # # # # # # # # # # # CLASSs# # # # # # # # # # # # # # # # # # # # # #
-
-
-class Download:
-    """
-    An object which can be downloaded later on :
-
-    Parameters
-    ---
-        url : str
-        name : str
-        download_type :
-        - basic
-        - serial_chunked
-        - parralel_chunked
-        filename : str
-    """
-
-    def __init__(self, url: str, filename: str, dl_type='basic', name='', **kwargs):
-
-        self.url = url
-        self.name = name
-        self.type = dl_type
-        self._filename: str = filename
-
-        self.chunk_size: int = kwargs.get('chunk_size', 8192)
-
-        self.download_folder = kwargs.get('download_folder', '.')
-
-        self.nb_split = kwargs.get('splits', 5)
-        self.progress = 0
-        self.resumable = kwargs.get('resumable', False)
-        self.size = -1
-        self.session = kwargs.get('session')
-
-        self.speed = 0
-        self.started = False
-        # not used for now
-        self.adaptative_chunk_size = kwargs.get('adaptative_chunk_size', False)
-        self.pause_time = 1
-        self.last = 0
-        self.last_time = time.time()
-        self.status = ""
-
-        self.event = threading.Event()
-        self.split_size = kwargs.get('split_size', -1)
-        self.user_agent = kwargs.get('user_agent', User_Agent)
-        self.on_end = kwargs.get('on_end')
-
-        # download method handling
-        if isinstance(dl_type, str):
-            self.download_method = download_methods.METHODS.get(
-                dl_type)
-        else:
-            raise Exception("str exptected")
-        if self.download_method == None:
-            raise Exception(f"""type not available : {dl_type} not found
-        types are {list(download_methods.METHODS.keys())}""")
-
-        self.has_error = False
-
-        self.lock = threading.RLock()
-        self.file = None
-        self.chunk_size = CHUNK_SIZE
-        self.sanitize()
-
-    def __repr__(self):
-        return f'<Download {self.url}>'
-
-    def init_file(self):
-        self.file = open(self.filename, 'wb')
-
-    def _size(self):
-        if self.size == 0:
-            return self.progress
-        return self.size
-
-    def init_size(self):
-        size = 0
-        while size == 0 and not self.is_stopped():
-            size, p = utils.get_size(self.url, self.session)
-            if size != 0:
-                continue
-            print('getting size failed | error {} | -> retrying'.format(p))
-        self.size = size
-
-    def little(self):
-        r = {
-            "name": self.name,
-            "url": self.url,
-            "progress": self.get_progression(),
-            "size": self.size,
-            "speed": self.get_speed(),
-            "status": self.get_status(),
-        }
-        if self.origin_url != '':
-            r["origin"] = self.origin_url
-        return r
-
-    def is_paused(self):
-        return self.status == status.PAUSED
-
-    def is_finished(self):
-        return self.status == status.FINISHED
-
-    def is_stopped(self):
-        return self.status == status.STOPPED
-
-    def get_progression(self):
-        try:
-            return (self.progress / self.size) * 100
-        except:
-            return 0
-
-    def finish(self):
-        self.progress = self.size
-        self.status = status.FINISHED
-        self.file.close()
-
-    def update(self, progress):
-        self.progress = progress
-
-    def pause(self):
-        self.status = status.PAUSED
-
-    def resume(self):
-        self.status = status.DOWNLOADING
-
-    def stop(self):
-        self.status = status.STOPPED
-        self.stopped[0] = True
-        self.event.set()
-
-    def get_speed(self):
-        if time.time() - self.last_time >= 1:
-            self.speed = (self.progress - self.last) / \
-                (time.time() - self.last_time)
-            self.last_time = time.time()
-            self.last = self.progress
-        return self.speed
-
-    def dump_progress(self):  # not working
-        raise Exception('Broken')
-
-    def dump(self):  # not working
-        raise Exception('Broken')
-
-    @property
-    def filename(self):
-        return os.path.join(self.download_folder, self._filename)
-
-    @filename.setter
-    def filename(self, name: str):
-        self._filename = name
-
-    def sanitize(self):
-        for char in TO_REMOVE:
-            self._filename = self._filename.replace(char, '')
-
-    def download(self, action=None):
-        self.download_method(self, action, self.session)
-
-    def write_at(self, at: int, data: bytes):
-        with self.lock:
-            self.file.seek(at)
-            self.file.write(data)
-            self.progress += len(data)
-        return at + len(data)
 
 
 class Download_container:
@@ -205,7 +23,13 @@ class Download_container:
         An Action can be executed on start and on end
     """
 
-    def __init__(self, name: str, downloads: List[Download], download_folder='.', *args, **kwargs):
+    def __init__(
+        self,
+        name: str,
+        downloads: List[Download],
+        download_folder='.',
+        **kwargs
+    ):
         self.downloads = []
         self.name = name
         self.download_folder = download_folder
@@ -277,20 +101,20 @@ class Download_container:
     def finish(self):
         self.finished = True
         self.progress = self.size
-        self.statut = status.FINISHED
+        self.statut = Status.FINISHED
 
     def stop(self):
-        self.statut = status.STOPPED
+        self.statut = Status.STOPPED
         for dl in self.downloads:
             dl.stop()
 
     def pause(self):
-        self.statut = status.PAUSED
+        self.statut = Status.PAUSED
         for dl in self.downloads:
             dl.pause()
 
     def resume(self):
-        self.statut = status.DOWNLOADING
+        self.statut = Status.DOWNLOADING
         for dl in self.downloads:
             dl.resume()
 
@@ -359,7 +183,7 @@ class Download_container:
             self.on_start()
 
         dls = len(self.downloads)
-        self.statut = status.DOWNLOADING
+        self.statut = Status.DOWNLOADING
         for dl in self.downloads:
             t = threading.Thread(target=dl.download, args=(self.end1,))
             t.start()
@@ -379,10 +203,10 @@ class Download_container:
         self.finish()
 
     def is_stopped(self):
-        return self.statut == status.STOPPED
+        return self.statut == Status.STOPPED
 
     def is_paused(self):
-        return self.statut == status.PAUSED
+        return self.statut == Status.PAUSED
 
     def _prepare_download(self, d_obj: Download):
         d_obj.download_folder = os.path.join(self.download_folder, self.name)
