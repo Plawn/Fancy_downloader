@@ -1,12 +1,15 @@
+from __future__ import annotations
 import threading
-from typing import Literal, Optional
+from typing import Literal, Optional, TYPE_CHECKING
 
 import requests
 
 from . import Fancy_downloader as dl
 from . import tokens, utils
-from .Fancy_downloader import Download
-from .utils import Action, get_chunk
+
+from .utils import Action, Split, get_chunk
+if TYPE_CHECKING:
+    from .Fancy_downloader import Download
 
 
 def serial_chunked_download(
@@ -80,7 +83,7 @@ def basic_download(
     d_obj.init_size()
     d_obj.init_file()
 
-    get_chunk(d_obj.url, f"{0}-{d_obj.size}", d_obj, session)
+    get_chunk(d_obj.url, Split(0, d_obj.size), d_obj, session)
     if end_action is not None:
         end_action()
     d_obj.finish()

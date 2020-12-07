@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, TYPE_CHECKING, Tuple
 from functools import lru_cache
 import requests
 
-from .Fancy_downloader import Download
+if TYPE_CHECKING:
+    from .Fancy_downloader import Download
 
 RETRY_SLEEP_TIME = 0.3
 MAX_RETRY = 10
@@ -30,20 +31,19 @@ class Split:
     start: int
     end: int
 
-    @lru_cache()
     def as_range(self):
         return f'{self.start}-{self.end}'
 
 
 def get_size(url: str, session: Optional[requests.Session] = None) -> Tuple[int, requests.Request]:
     requester = session or requests
-    r = requester.head(url, headers={'Accept-Encoding': 'identity'})
-    return (int(r.headers.get('content-length', 0)), r)
+    res = requester.head(url, headers={'Accept-Encoding': 'identity'})
+    return (int(res.headers.get('content-length', 0)), res)
 
 
 def sm_split(sizeInBytes: int, numsplits: int, offset: int = 0) -> List[Split]:
     if numsplits <= 1:
-        return [f"0-{sizeInBytes}"]
+        return Split(0, sizeInBytes)
     lst = []
     i = 0
     lst.append(Split(i + offset, offset + int(round(1 + i *
