@@ -8,7 +8,7 @@ b = fp.ProgressBar('download', 'kill_when_finished', 'animated')
 
 handle = fp.ProgressBarHandler([b])
 handle.start()
-d = dl.Download(url, 'test.zip', 'serial_chunked')
+d = dl.Download(url, 'test.zip', '','basic')
 b.use_progress(d.get_progression)
 d.download()
 b.finish()

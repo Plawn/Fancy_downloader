@@ -1,14 +1,32 @@
+from __future__ import annotations
+
 import io
+import ujson as json
+import os
 import threading
 import time
-from typing import Dict, List, Optional
-import os
+from typing import Any, Dict, List, Optional
+import dataclasses_json
 
 import requests
 
 from . import download_methods, utils
-from .constants import DEFAULT_SPLIT_COUNT, DEFAULT_USER_AGENT, Status, TO_REMOVE
-from .utils import Action
+from .constants import (DEFAULT_SPLIT_COUNT, DEFAULT_USER_AGENT, TO_REMOVE,
+                        Status)
+from .data_struct import Chunk, DownloadProgressSave
+from .utils import Action, MAX_RETRY
+
+# struct for downlaoding file:
+# 8 bytes as utf-8 encoded giving the size of the progress struct_size
+# progress_struct encoded as json as base64 encoded bytes
+# progress struct is updated on file_write
+# rest of the file is the actual data
+#
+#
+#
+
+
+HEADER_LENGTH = 6
 
 
 class Download:
@@ -40,22 +58,23 @@ class Download:
         nb_split: int = DEFAULT_SPLIT_COUNT,
         split_size: int = -1,
         on_end: Optional[Action] = None,
+        progress_data: Optional[DownloadProgressSave] = None,
     ):
 
         self.url: str = url
         self.name: str = name
         self.type: download_methods.METHODS = dl_type
-        self._filename: str = filename
+
+        self.__filename: str = filename
+        self.download_folder: str = download_folder
 
         self.chunk_size: int = chunk_size
-
-        self.download_folder: str = download_folder
 
         self.nb_split: int = nb_split
         self.progress = 0
         # TODO:
         # self.resumable = False
-        self.size = -1
+        self.size = progress_data.size if progress_data is not None else -1
         self.session = session
 
         self.speed = 0
@@ -73,18 +92,28 @@ class Download:
         self.on_end: Optional[Action] = on_end
 
         self.download_method = download_methods.get_method(dl_type)
-
         self.has_error: bool = False
 
         self.lock = threading.RLock()
         self.file: Optional[io.BytesIO] = None
-        self.sanitize()
+
+        # used to store progress data in order to dump the file
+        self.progress_data: DownloadProgressSave = progress_data
+        self.header_size = HEADER_LENGTH
 
     def __repr__(self):
         return f'<Download {self.url}>'
 
-    def init_file(self):
-        self.file = open(self.filename, 'wb')
+    def init_file(self, chunks: Optional[List[Chunk]] = None):
+        
+        if chunks is not None:
+            self.file = open(self.filename, 'wb')    
+            self.progress_data = DownloadProgressSave(
+                self.url, self.filename, self.size, self.name,
+                self.type, chunks,
+            )
+        else:
+            self.file = open(self.filename, 'ab')
 
     def _size(self):
         if self.size == 0:
@@ -92,26 +121,15 @@ class Download:
         return self.size
 
     def init_size(self):
+        failed = 0
         size = 0
-        while size == 0 and not self.is_stopped():
+        while size == 0 and failed < MAX_RETRY and not self.is_stopped():
             size, p = utils.get_size(self.url, self.session)
             if size == 0:
+                # TODO: handle error here
                 print('getting size failed | error {} | -> retrying'.format(p))
-
+                failed += 1
         self.size = size
-
-    def little(self):
-        r = {
-            "name": self.name,
-            "url": self.url,
-            "progress": self.get_progression(),
-            "size": self.size,
-            "speed": self.get_speed(),
-            "status": self.get_status(),
-        }
-        if self.origin_url != '':
-            r["origin"] = self.origin_url
-        return r
 
     def is_paused(self):
         return self.status == Status.PAUSED
@@ -122,7 +140,7 @@ class Download:
     def is_stopped(self):
         return self.status == Status.STOPPED
 
-    def get_progression(self):
+    def get_progression(self) -> float:
         try:
             return (self.progress / self.size) * 100
         except:
@@ -144,7 +162,6 @@ class Download:
 
     def stop(self) -> None:
         self.status = Status.STOPPED
-        self.stopped[0] = True
         self.event.set()
 
     def get_speed(self) -> float:
@@ -155,31 +172,47 @@ class Download:
             self.last = self.progress
         return self.speed
 
-    def dump_progress(self):  # not working
-        raise Exception('Broken')
-
-    def dump(self):  # not working
-        raise Exception('Broken')
-
     @property
     def filename(self) -> str:
-        return os.path.join(self.download_folder, self._filename)
+        return os.path.join(self.download_folder, self.__filename)
 
     @filename.setter
     def filename(self, name: str) -> None:
-        self._filename = name
-
-    def sanitize(self) -> None:
-        for char in TO_REMOVE:
-            self._filename = self._filename.replace(char, '')
+        self.__filename = name
 
     def download(self, action: Optional[Action] = None):
-        self.download_method(self, action, self.session)
+        self.download_method(
+            d_obj=self,
+            end_action=action,
+            session=self.session,
+            progress_data=self.progress_data
+        )
         # self.download_method(self, action, self.session)
 
-    def write_at(self, at: int, data: bytes):
+    def __save_progress(self, at: int, bytes_length: int, chunk_id: int):
+        # basic save only for now
+        # 6 is the number of bytes used to save the length of the metadata
+
+        self.progress_data.chunks[chunk_id].last = at + bytes_length
+        # TODO: optimize writes
+        with open(f'{self.filename}.json', 'w+') as f:
+            f.seek(0)
+            f.write(self.progress_data.to_json())
+
+    def write_at(self, at: int, data: bytes, chunk_id: int):
         with self.lock:
+            # print(f'writing {len(data)} bytes at {at}')
             self.file.seek(at)
             self.file.write(data)
+            self.__save_progress(at, len(data), chunk_id)
             self.progress += len(data)
         return at + len(data)
+
+
+def from_save(d: dict) -> Download:
+    data: DownloadProgressSave = DownloadProgressSave.from_dict(d)
+    # TODO: handle download folder
+    dl = Download(data.url, data.filename, data.name,
+                  data.type, progress_data=data)
+
+    return dl

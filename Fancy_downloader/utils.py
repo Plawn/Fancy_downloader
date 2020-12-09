@@ -46,11 +46,20 @@ def sm_split(sizeInBytes: int, numsplits: int, offset: int = 0) -> List[Split]:
         return Split(0, sizeInBytes)
     lst = []
     i = 0
-    lst.append(Split(i + offset, offset + int(round(1 + i *
-                                                    sizeInBytes/(numsplits*1.0) + sizeInBytes/(numsplits*1.0)-1, 0))))
+    lst.append(Split(
+        i + offset,
+        offset + int(
+            round(1 + i *
+                  sizeInBytes/(numsplits*1.0) + sizeInBytes/(numsplits*1.0)-1, 0)
+        )
+    ))
     for i in range(1, numsplits):
-        lst.append(Split(offset + int(round(1 + i * sizeInBytes/(numsplits*1.0), 1)), offset +
-                         int(round(1 + i * sizeInBytes/(numsplits*1.0) + sizeInBytes/(numsplits*1.0)-1, 0))))
+        lst.append(
+            Split(
+                offset + int(round(1 + i * sizeInBytes/(numsplits*1.0), 1)),
+                offset + int(round(1 + i * sizeInBytes/(numsplits*1.0) +
+                                   sizeInBytes/(numsplits*1.0)-1, 0))
+            ))
     return lst
 
 
@@ -68,7 +77,12 @@ def prepare_name(url: str) -> str:
     return resized
 
 
-def get_and_retry(url: str, split: Split, d_obj: Optional[Download] = None, session: Optional[requests.Session] = None):
+def get_and_retry(
+    url: str,
+    split: Split,
+    d_obj: Download,
+    session: Optional[requests.Session] = None
+) -> requests.Response:
     headers = {
         'Range': f'bytes={split.as_range()}'
     }
@@ -81,6 +95,7 @@ def get_and_retry(url: str, split: Split, d_obj: Optional[Download] = None, sess
             done = True
             return response
         else:
+            # TODO:
             errors += 1
             print(f"error retrying | error code {response.status_code}")
             # should be parameters
@@ -96,13 +111,16 @@ def get_chunk(
     url: str,
     split: Split,
     d_obj: Download,
-    session: Optional[requests.Session] = None
+    part_id:int, 
+    session: Optional[requests.Session] = None,
 ) -> bool:
+    if split.start == split.end:
+        return True
     response = get_and_retry(url, split, d_obj, session)
     at = split.start
     for data in response.iter_content(chunk_size=d_obj.chunk_size):
         if not d_obj.is_stopped():
-            at = d_obj.write_at(at, data)
+            at = d_obj.write_at(at, data, part_id)
             if d_obj.is_paused():
                 d_obj.event.wait(d_obj.pause_time)
         else:
