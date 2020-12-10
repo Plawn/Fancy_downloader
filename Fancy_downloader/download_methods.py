@@ -140,13 +140,13 @@ def serial_parralel_chunked_download(
     """Downloads a file using multiple connections and multiple chunks per connection
     """
     if progress_data is not None:
-        raise NotImplementedError('Is not resumable for now')
+        d_obj.init_file()
+        splits = [Split(s.last, s.end) for s in progress_data.chunks]
     else:
         d_obj.init_size()
         splits = utils.split(d_obj.size - 1, d_obj.nb_split)
         # das ok
         d_obj.init_file([Chunk(s.start, s.end, -1) for s in splits])
-        # d_obj.init_file()
 
     threads = []
     end_action1 = None

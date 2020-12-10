@@ -1,12 +1,1 @@
-{
-    "url": "https://download01.logi.com/web/ftp/pub/techsupport/gaming/lghub_installer.zip",
-    "filename": "test.zip",
-    "size": 7760958,
-    "name": "",
-    "type": "serial",
-    "chunks": [{
-        "start": 0,
-        "end": 7760957,
-        "last": 7760957
-    }]
-}
+{"url": "https://download01.logi.com/web/ftp/pub/techsupport/gaming/lghub_installer.zip", "filename": "test.zip", "size": 7760958, "name": "", "type": "serial_parralel", "chunks": [{"start": 0, "end": 1552191, "last": 1552191}, {"start": 1552192, "end": 3104382, "last": 3104382}, {"start": 3104383, "end": 4656573, "last": 4656573}, {"start": 4656574, "end": 6208764, "last": 6208764}, {"start": 6208764, "end": 7760957, "last": 7760957}]}
