@@ -72,16 +72,14 @@ class Download:
 
         self.nb_split: int = nb_split
 
-        # TODO:
-        # self.resumable = False
         self.size: int = progress_data.size if progress_data is not None else -1
-        self.progress = 0 if progress_data is None else sum(
+        self.progress: int = 0 if progress_data is None else sum(
             s.last - s.start for s in progress_data.chunks)
         self.session = session
 
         self.speed = 0
         self.started = False
-        # not used for now
+        # TODO: not used for now
         # self.adaptative_chunk_size = kwargs.get('adaptative_chunk_size', False)
         self.pause_time: int = 1
         self.last = 0

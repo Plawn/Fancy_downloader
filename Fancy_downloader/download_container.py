@@ -16,7 +16,7 @@ from .utils import Action
 # # # # # # # # # # # # # # # # # # # # # CLASSs# # # # # # # # # # # # # # # # # # # # # #
 
 
-class Download_container:
+class DownloadContainer:
     """
     A download container contains multiples downloads :
         An Action can be executed on start and on end
@@ -26,10 +26,10 @@ class Download_container:
         self,
         name: str,
         downloads: List[Download],
-        download_folder='.',
+        download_folder: str = '.',
         **kwargs
     ):
-        self.downloads = []
+        self.downloads: List[Download] = []
         self.name = name
         self.download_folder = download_folder
 
@@ -46,7 +46,7 @@ class Download_container:
         self.finished = False
         self.done = False
 
-        self.end1 = utils.End_action(self.add_finished)
+        self.end1 = utils.End_action(self.__add_finished)
         self.end_action = kwargs.get('end_action')
         self.on_start = kwargs.get('begin_action')
         self._filename = kwargs.get('filename', 'file')
@@ -72,7 +72,7 @@ class Download_container:
         else:
             return self.size
 
-    def set_filename(self, name):
+    def set_filename(self, name: str) -> None:
         self._filename = name
 
     def set_status(self, string):
@@ -84,13 +84,13 @@ class Download_container:
             return self.custom_status
         return self.statut
 
-    def get_progression(self):
+    def get_progression(self) -> float:
         self.progress = 0
-        to_dl = 0
-        dled = 0
+        to_dl: int = 0
+        dled: int = 0
         for dl in self.downloads:
             to_dl += dl._size()
-            dled += dl.progress[0]
+            dled += dl.progress
         if to_dl > 0:
             self.progress = (dled / to_dl) * 100
         else:
@@ -99,7 +99,6 @@ class Download_container:
 
     def finish(self):
         self.finished = True
-        self.progress = self.size
         self.statut = Status.FINISHED
 
     def stop(self):
@@ -148,11 +147,12 @@ class Download_container:
             self.name = self.name.replace(char, '')
 
     # container stuff
-    def add_finished(self):
+    def __add_finished(self):
         self.finishedd += 1
         self.event.set()
 
-    def __prepare_actions(self, *actions: Tuple[Action]):
+    def __prepare_actions(self, *actions: Action):
+        # TODO: really necessary ?
         for action in actions:
             if action is not None:
                 for i in range(len(action.args)):
@@ -173,6 +173,7 @@ class Download_container:
         try:
             os.mkdir(os.path.join(self.download_folder, self.name))
         except:
+            # TODO: better error handling
             pass
 
     def download(self):
@@ -188,9 +189,9 @@ class Download_container:
             t.start()
             self.threads.append(t)
             time.sleep(TIME_BETWEEN_DL_START)
-
+        WAIT_TIME = 60
         while not self.done:
-            self.event.wait(60)
+            self.event.wait(WAIT_TIME)
             if self.finishedd == dls:
                 self.done = True
                 if self.end_action is not None and not self.is_stopped():
@@ -210,8 +211,9 @@ class Download_container:
     def _prepare_download(self, d_obj: Download):
         d_obj.download_folder = os.path.join(self.download_folder, self.name)
 
-    def append(self, *args):
-        for dl in args:
-            if isinstance(dl, Download):
-                self.downloads.append(dl)
-                self._prepare_download(dl)
+    def append(self, download: Download):
+        if isinstance(download, Download):
+            self.downloads.append(download)
+            self._prepare_download(download)
+        else:
+            raise Exception('Invalid type, expexted Download instance')

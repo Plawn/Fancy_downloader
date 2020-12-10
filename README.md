@@ -1,40 +1,29 @@
-# !! ALL OF THIS IS DEPRECATED !!
-
-
-[Latest Version = 0.16]
+[Latest Version = 0.17]
 
 ## [Installation]
 
-```shell
-	pip install Fancy_Downloader
+```sh
+$ pip install Fancy_Downloader
 ```
 
 ##[How to use]
 
 ```python
-	import Fancy_Downloader as dl
-	d = dl.Download(url=url, type="serial_chunked") #verbose requeries the Fancy_Progressbar lib
-	dl.download(d)
-	
+	from petit_downloader import Download
+	d = Download(url=url, filename="test.zip", type="serial") #verbose requeries the Fancy_Progressbar lib
+	d.download()
 ```
-#[Download types available]
+# Download types available
 
-* serial_chunked
 * basic
-* parrarel_chunked
-* serial_parralel_chunked
+* serial
+* parrarel
+* serial_parralel
 
 # Objects available
 
 ```python
 	Download()
-	Download_container()
+	DownloadContainer()
 	Action(func, *args)
-
 ```
-#[Functions available]
-```python
-	download(Download_objet) #deprecated
-
-```
-
