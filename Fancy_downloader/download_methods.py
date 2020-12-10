@@ -1,13 +1,14 @@
 
 from __future__ import annotations
-from dataclasses import dataclass
-from .data_struct import Chunk, DownloadProgressSave
+
 import threading
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Optional, Union
 
 import requests
 
 from . import utils
+from .data_struct import Chunk, DownloadProgressSave
 from .utils import Action, Split, get_chunk
 
 if TYPE_CHECKING:
@@ -18,8 +19,8 @@ def serial_chunked_download(
     d_obj: Download,
     end_action: Optional[Action] = None,
     session: Optional[requests.Session] = None,
-    progress_data: Optional[DownloadProgressSave] = None,
     *,
+    progress_data: Optional[DownloadProgressSave] = None,
     start: int = 0,
     end: int = 0,
     chunk_id: Optional[int] = 0,
@@ -145,7 +146,6 @@ def serial_parralel_chunked_download(
     else:
         d_obj.init_size()
         splits = utils.split(d_obj.size - 1, d_obj.nb_split)
-        # das ok
         d_obj.init_file([Chunk(s.start, s.end, -1) for s in splits])
 
     threads = []
