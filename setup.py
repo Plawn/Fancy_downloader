@@ -1,13 +1,17 @@
-from setuptools import setup, find_packages
+from setuptools import setup
+
+with open('readme.md', 'r') as f :
+    readme_content = f.read()
 
 setup(
-    name='Fancy_downloader',
-    version='0.16',
+    name='petit_downloader',
+    version='0.1.1',
     description='Download files in an easier way',
-    packages=['Fancy_downloader'],
+    packages=['petit_downloader'],
     url='https://github.com/Plawn/Fancy_Downloader',
     license='apache-2.0',
     author='Plawn',
     author_email='plawn.yay@gmail.com',
-    long_description="Look at the github",
+    long_description=readme_content,
+    long_description_content_type="text/markdown",
 )

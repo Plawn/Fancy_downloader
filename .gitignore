@@ -4,4 +4,4 @@
 *.zip
 *.app
 *.vscode
-test.zip.json
+*test.zip.json

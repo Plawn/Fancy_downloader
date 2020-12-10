@@ -3,7 +3,7 @@ import hashlib
 
 import Fancy_progressbar as fp
 
-from Fancy_downloader import from_save
+from petit_downloader import from_save
 
 
 def md5(fname: str):

@@ -189,7 +189,6 @@ class Download:
             session=self.session,
             progress_data=self.progress_data
         )
-        # self.download_method(self, action, self.session)
 
     def __save_progress(self, at: int, bytes_length: int, chunk_id: int):
         # basic save only for now

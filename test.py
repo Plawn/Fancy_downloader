@@ -2,7 +2,7 @@ import hashlib
 import sys
 import Fancy_progressbar as fp
 
-import Fancy_downloader as dl
+import petit_downloader as dl
 
 
 def md5(fname):
