@@ -43,24 +43,24 @@ def get_size(url: str, session: Optional[requests.Session] = None) -> Tuple[int,
 
 
 def split(size: int, chunks_nb: int, offset: int = 0) -> List[Split]:
-    size -= 1
     if chunks_nb == 1:
         return [Split(0, size)]
     chunk_size = size // chunks_nb
-    l = [Split(
-        offset + 0,
-        offset + chunk_size
+    l = [(
+        0,
+        chunk_size
     )]
-    l.extend(Split(
-        offset + 1 + i * chunk_size,
-        offset + (i + 1) * chunk_size)
+    l.extend(
+        (1 + i * chunk_size, (i + 1) * chunk_size)
         for i in range(1, chunks_nb - 1)
     )
-    l.append(Split(
-        offset + (chunks_nb - 1) * chunk_size,
+    l.append((
+        (chunks_nb - 1) * chunk_size,
         size
     ))
-    return l
+    return [
+        Split(start + offset, end + offset) for start, end in l
+    ]
 
 
 # TODO: clean this

@@ -38,7 +38,7 @@ def serial_chunked_download(
             else:
                 nb_split = d_obj.nb_split
 
-            splits = utils.split(d_obj.size, nb_split)
+            splits = utils.split(d_obj.size - 1, nb_split)
         else:
             d_obj.init_file()
             # TODO: ugly here
@@ -46,11 +46,14 @@ def serial_chunked_download(
                 nb_split = int(d_obj.size / d_obj.split_size) + 1
             else:
                 nb_split = d_obj.nb_split
-            splits = utils.split(d_obj.size, nb_split,
+            splits = utils.split(d_obj.size - 1, nb_split,
                                  progress_data.chunks[0].last)
     else:
         # coming from serial_parralel_chunked
-        nb_split = int(d_obj.size / d_obj.split_size) + 1
+        if d_obj.split_size != -1:
+                nb_split = int(d_obj.size / d_obj.split_size) + 1
+        else:
+                nb_split = d_obj.nb_split
         splits = utils.split(end - start, nb_split, start)
 
     for split in splits:
@@ -76,7 +79,7 @@ def parralel_chunked_download(
     """
     if progress_data is None:
         d_obj.init_size()
-        splits = utils.split(d_obj.size, d_obj.nb_split)
+        splits = utils.split(d_obj.size - 1, d_obj.nb_split)
         d_obj.init_file([Chunk(s.start, s.end, -1) for s in splits])
     else:
         d_obj.init_file()
@@ -116,7 +119,6 @@ def basic_download(
             Chunk(0, d_obj.size - 1, -1)
         ])
         split = Split(0, d_obj.size - 1)
-        print('loading with', split)
     else:
         d_obj.init_file()
         split = Split(progress_data.chunks[0].last, d_obj.size - 1)
@@ -131,15 +133,20 @@ def serial_parralel_chunked_download(
     d_obj: Download,
     end_action: Optional[Action] = None,
     session: Optional[requests.Session] = None,
-    progress_data=None
+    *,
+    progress_data: Optional[DownloadProgressSave] = None
 ) -> bool:
     """Downloads a file using multiple connections and multiple chunks per connection
     """
-    d_obj.init_size()
-    d_obj.init_file()
+    if progress_data is not None:
+        raise NotImplementedError('Is not resumable for now')
+    else:
+        d_obj.init_size()
+        splits = utils.split(d_obj.size - 1, d_obj.nb_split)
+        # das ok
+        d_obj.init_file([Chunk(s.start, s.end, -1) for s in splits])
+        d_obj.init_file()
 
-    size = d_obj.size
-    splits = utils.split(size, d_obj.nb_split)
     threads = []
     end_action1 = None
     for split in splits:
