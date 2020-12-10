@@ -34,10 +34,10 @@ def serial_chunked_download(
             nb_split = int(d_obj.size / d_obj.split_size) + 1
         else:
             nb_split = d_obj.nb_split
-        splits = utils.sm_split(d_obj.size, nb_split)
+        splits = utils.split(d_obj.size, nb_split)
     else:
         nb_split = int(d_obj.size / d_obj.split_size) + 1
-        splits = utils.sm_split(end - start, nb_split, start)
+        splits = utils.split(end - start, nb_split, start)
 
     for split in splits:
         get_chunk(d_obj.url, split, d_obj, 0, session)
@@ -55,13 +55,18 @@ def parralel_chunked_download(
     d_obj: Download,
     end_action: Optional[Action] = None,
     session: Optional[requests.Session] = None,
+    *,
+    progress_data: Optional[DownloadProgressSave] = None,
 ) -> bool:
     """Downloads a file using multiple connections
     """
-    d_obj.init_size()
-    splits = utils.sm_split(d_obj.size, d_obj.nb_split)
-    d_obj.init_file([Chunk(s.start, s.end, -1) for s in splits])
-
+    if progress_data is None:
+        d_obj.init_size()
+        splits = utils.split(d_obj.size, d_obj.nb_split)
+        d_obj.init_file([Chunk(s.start, s.end, -1) for s in splits])
+    else:
+        d_obj.init_file()
+        splits = [Split(s.last, s.end) for s in progress_data.chunks]
     threads = []
     for i, split in enumerate(splits):
         t = threading.Thread(
@@ -94,12 +99,13 @@ def basic_download(
     if progress_data is None:
         d_obj.init_size()
         d_obj.init_file([
-            Chunk(0, d_obj.size, -1)
+            Chunk(0, d_obj.size - 1, -1)
         ])
-        split = Split(0, d_obj.size)
+        split = Split(0, d_obj.size - 1)
+        print('loading with', split)
     else:
         d_obj.init_file()
-        split = Split(progress_data.chunks[0].last, d_obj.size)
+        split = Split(progress_data.chunks[0].last, d_obj.size - 1)
     get_chunk(d_obj.url, split, d_obj, 0, session)
     if end_action is not None:
         end_action()
@@ -119,7 +125,7 @@ def serial_parralel_chunked_download(
     d_obj.init_file()
 
     size = d_obj.size
-    splits = utils.sm_split(size, d_obj.nb_split)
+    splits = utils.split(size, d_obj.nb_split)
     threads = []
     end_action1 = None
     for split in splits:
@@ -143,14 +149,14 @@ def serial_parralel_chunked_download(
 
 
 methods = {
-    "serial_chunked": serial_chunked_download,
-    "parralel_chunked": parralel_chunked_download,
+    "serial": serial_chunked_download,
+    "parralel": parralel_chunked_download,
     "basic": basic_download,
-    "serial_parralel_chunked": serial_parralel_chunked_download
+    "serial_parralel": serial_parralel_chunked_download
 }
 
-METHODS = Literal["serial_chunked", "parralel_chunked",
-                  "basic", "serial_parralel_chunked"]
+METHODS = Literal["serial", "parralel",
+                  "basic", "serial_parralel"]
 
 methodsType = Union[serial_chunked_download, parralel_chunked_download,
                     basic_download, serial_chunked_download]

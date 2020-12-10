@@ -38,35 +38,32 @@ class Split:
 def get_size(url: str, session: Optional[requests.Session] = None) -> Tuple[int, requests.Request]:
     requester = session or requests
     res = requester.head(url, headers={'Accept-Encoding': 'identity'})
-    return (int(res.headers.get('content-length', 0)), res)
+    size = int(res.headers.get('content-length', 0))
+    return size, res
 
 
-def sm_split(sizeInBytes: int, numsplits: int, offset: int = 0) -> List[Split]:
-    if numsplits <= 1:
-        return Split(0, sizeInBytes)
-    lst = []
-    i = 0
-    lst.append(Split(
-        i + offset,
-        offset + int(
-            round(1 + i *
-                  sizeInBytes/(numsplits*1.0) + sizeInBytes/(numsplits*1.0)-1, 0)
-        )
+def split(size: int, chunks_nb: int, offset: int = 0) -> List[Split]:
+    size -= 1
+    if chunks_nb == 1:
+        return [Split(0, size)]
+    chunk_size = size // chunks_nb
+    l = [Split(
+        offset + 0,
+        offset + chunk_size
+    )]
+    l.extend(Split(
+        offset + 1 + i * chunk_size,
+        offset + (i + 1) * chunk_size)
+        for i in range(1, chunks_nb - 1)
+    )
+    l.append(Split(
+        (chunks_nb - 1) * chunk_size,
+        size
     ))
-    for i in range(1, numsplits):
-        lst.append(
-            Split(
-                offset + int(round(1 + i * sizeInBytes/(numsplits*1.0), 1)),
-                offset + int(round(1 + i * sizeInBytes/(numsplits*1.0) +
-                                   sizeInBytes/(numsplits*1.0)-1, 0))
-            ))
-    return lst
+    return l
 
 
-def extract_int(string: str) -> str:
-    return ''.join(i for i in string if i in '0123456789')
-
-
+# TODO: clean this
 def prepare_name(url: str) -> str:
     splited = url.split('/')
     resized = ''
@@ -96,6 +93,7 @@ def get_and_retry(
             return response
         else:
             # TODO:
+            # better error handling
             errors += 1
             print(f"error retrying | error code {response.status_code}")
             # should be parameters
@@ -111,10 +109,11 @@ def get_chunk(
     url: str,
     split: Split,
     d_obj: Download,
-    part_id:int, 
+    part_id: int,
     session: Optional[requests.Session] = None,
 ) -> bool:
-    if split.start == split.end:
+    # TODO: should be ==
+    if split.start >= split.end:
         return True
     response = get_and_retry(url, split, d_obj, session)
     at = split.start

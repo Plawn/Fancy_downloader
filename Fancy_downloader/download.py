@@ -100,20 +100,21 @@ class Download:
         # used to store progress data in order to dump the file
         self.progress_data: DownloadProgressSave = progress_data
         self.header_size = HEADER_LENGTH
+        self.progress_file: Optional[io.TextIOWrapper] = None
 
     def __repr__(self):
         return f'<Download {self.url}>'
 
     def init_file(self, chunks: Optional[List[Chunk]] = None):
-        
+        self.progress_file = open(f'{self.filename}.json', 'w+')
         if chunks is not None:
-            self.file = open(self.filename, 'wb')    
+            self.file = open(self.filename, 'wb')
             self.progress_data = DownloadProgressSave(
                 self.url, self.filename, self.size, self.name,
                 self.type, chunks,
             )
         else:
-            self.file = open(self.filename, 'ab')
+            self.file = open(self.filename, 'rb+')
 
     def _size(self):
         if self.size == 0:
@@ -141,15 +142,16 @@ class Download:
         return self.status == Status.STOPPED
 
     def get_progression(self) -> float:
-        try:
+        if self.size != 0:
             return (self.progress / self.size) * 100
-        except:
-            return 0
+        return 0
+        
 
     def finish(self):
         self.progress = self.size
         self.status = Status.FINISHED
         self.file.close()
+        self.progress_file.close()
 
     def update(self, progress: float) -> None:
         self.progress = progress
@@ -195,13 +197,11 @@ class Download:
 
         self.progress_data.chunks[chunk_id].last = at + bytes_length
         # TODO: optimize writes
-        with open(f'{self.filename}.json', 'w+') as f:
-            f.seek(0)
-            f.write(self.progress_data.to_json())
+        self.progress_file.seek(0)
+        self.progress_file.write(self.progress_data.to_json())
 
     def write_at(self, at: int, data: bytes, chunk_id: int):
         with self.lock:
-            # print(f'writing {len(data)} bytes at {at}')
             self.file.seek(at)
             self.file.write(data)
             self.__save_progress(at, len(data), chunk_id)

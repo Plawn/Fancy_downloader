@@ -1,15 +1,34 @@
-
-url_1="""
-https://dv-h.phncdn.com/hls/videos/202003/25/296657161/,720P_4000K,480P_2000K,240P_400K,_296657161.mp4.urlset/seg-4-f2-v1-a1.ts?ttl=1585662560&l=0&hash=13889162984cbbc9276ba5639e9dfe07
-"""
-
-url_2 = """
-https://dv-h.phncdn.com/hls/videos/202003/25/296657161/,720P_4000K,480P_2000K,240P_400K,_296657161.mp4.urlset/seg-5-f2-v1-a1.ts?ttl=1585662560&l=0&hash=13889162984cbbc9276ba5639e9dfe07
-"""
+from dataclasses import dataclass
 
 
-vid_id= '202003/25/296657161'
+@dataclass
+class Split:
+    start: int
+    end: int
 
-seg_name = 'seg-5-f2-v1-a1.ts'
+    def as_range(self):
+        return f'{self.start}-{self.end}'
 
-url = f"https://dv-h.phncdn.com/hls/videos/{vid_id}/{}/{seg_name}/?ttl=1585662560&l=0&hash={_hash}"
+
+size = 100000456
+
+
+chunks_nb = 2
+
+print(size // chunks_nb)
+
+
+def split(size: int, chunks_nb: int) -> list:
+    if chunks_nb == 1:
+        return [Split(0, size)]
+    chunk_size = size // chunks_nb
+    l = [Split(0, chunk_size)]
+    l.extend(Split(i * chunk_size + 1, (i+1)*chunk_size)
+             for i in range(1, chunks_nb - 1))
+    l.append(Split((chunks_nb - 1) * chunk_size, size))
+    return l
+
+
+l = (split(size, chunks_nb))
+print(len(l))
+print(l)
