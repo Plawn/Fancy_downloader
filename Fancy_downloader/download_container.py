@@ -9,9 +9,8 @@ import time
 from typing import Dict, List, Optional, Tuple
 
 from . import utils
-from .constants import TIME_BETWEEN_DL_START, TO_REMOVE
+from .constants import TIME_BETWEEN_DL_START, TO_REMOVE, Status
 from .download import Download
-from .tokens import Status
 from .utils import Action
 
 # # # # # # # # # # # # # # # # # # # # # CLASSs# # # # # # # # # # # # # # # # # # # # # #

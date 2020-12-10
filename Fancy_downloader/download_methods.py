@@ -18,7 +18,7 @@ def serial_chunked_download(
     d_obj: Download,
     end_action: Optional[Action] = None,
     session: Optional[requests.Session] = None,
-    progress_data: Optional[dict] = None,
+    progress_data: Optional[DownloadProgressSave] = None,
     *,
     start: int = 0,
     end: int = 0,
@@ -27,15 +27,29 @@ def serial_chunked_download(
     """
     splits = None
     if start == 0 and end == 0:
-        d_obj.init_size()
-        d_obj.init_file([Chunk(0, d_obj.size, -1)])
-        nb_split: int = 0
-        if d_obj.split_size != -1:
-            nb_split = int(d_obj.size / d_obj.split_size) + 1
+        if progress_data is None:
+            # new download
+            d_obj.init_size()
+            d_obj.init_file([Chunk(0, d_obj.size - 1, -1)])
+            nb_split: int = 0
+            # TODO: ugly here
+            if d_obj.split_size != -1:
+                nb_split = int(d_obj.size / d_obj.split_size) + 1
+            else:
+                nb_split = d_obj.nb_split
+
+            splits = utils.split(d_obj.size, nb_split)
         else:
-            nb_split = d_obj.nb_split
-        splits = utils.split(d_obj.size, nb_split)
+            d_obj.init_file()
+            # TODO: ugly here
+            if d_obj.split_size != -1:
+                nb_split = int(d_obj.size / d_obj.split_size) + 1
+            else:
+                nb_split = d_obj.nb_split
+            splits = utils.split(d_obj.size, nb_split,
+                                 progress_data.chunks[0].last)
     else:
+        # coming from serial_parralel_chunked
         nb_split = int(d_obj.size / d_obj.split_size) + 1
         splits = utils.split(end - start, nb_split, start)
 

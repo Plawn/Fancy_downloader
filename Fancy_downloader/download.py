@@ -71,11 +71,12 @@ class Download:
         self.chunk_size: int = chunk_size
 
         self.nb_split: int = nb_split
-        
+
         # TODO:
         # self.resumable = False
-        self.size = progress_data.size if progress_data is not None else -1
-        self.progress = 0 if progress_data is None else sum(s.last - s.start for s in progress_data.chunks)
+        self.size: int = progress_data.size if progress_data is not None else -1
+        self.progress = 0 if progress_data is None else sum(
+            s.last - s.start for s in progress_data.chunks)
         self.session = session
 
         self.speed = 0
@@ -85,7 +86,7 @@ class Download:
         self.pause_time: int = 1
         self.last = 0
         self.last_time: int = time.time()
-        self.status = ""
+        self.status: Status = ""
 
         self.event = threading.Event()
         self.split_size = split_size
@@ -111,7 +112,7 @@ class Download:
         if chunks is not None:
             self.file = open(self.filename, 'wb')
             self.progress_data = DownloadProgressSave(
-                self.url, self.filename, self.size, self.name,
+                self.url, self.__filename, self.size, self.name,
                 self.type, chunks,
             )
         else:
@@ -146,10 +147,8 @@ class Download:
         if self.size != 0:
             return (self.progress / self.size) * 100
         return 0
-        
 
     def finish(self):
-        self.progress = self.size
         self.status = Status.FINISHED
         self.file.close()
         self.progress_file.close()

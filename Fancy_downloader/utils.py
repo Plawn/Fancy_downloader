@@ -57,7 +57,7 @@ def split(size: int, chunks_nb: int, offset: int = 0) -> List[Split]:
         for i in range(1, chunks_nb - 1)
     )
     l.append(Split(
-        (chunks_nb - 1) * chunk_size,
+        offset + (chunks_nb - 1) * chunk_size,
         size
     ))
     return l
