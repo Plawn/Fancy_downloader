@@ -165,6 +165,8 @@ class Download:
 
     def stop(self) -> None:
         self.status = Status.STOPPED
+        self.file.close()
+        self.progress_file.close()
         self.event.set()
 
     def get_speed(self) -> float:
