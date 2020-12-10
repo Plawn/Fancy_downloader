@@ -71,10 +71,11 @@ class Download:
         self.chunk_size: int = chunk_size
 
         self.nb_split: int = nb_split
-        self.progress = 0
+        
         # TODO:
         # self.resumable = False
         self.size = progress_data.size if progress_data is not None else -1
+        self.progress = 0 if progress_data is None else sum(s.last - s.start for s in progress_data.chunks)
         self.session = session
 
         self.speed = 0
@@ -195,7 +196,7 @@ class Download:
         # basic save only for now
         # 6 is the number of bytes used to save the length of the metadata
 
-        self.progress_data.chunks[chunk_id].last = at + bytes_length
+        self.progress_data.chunks[chunk_id].last = at + bytes_length - 1
         # TODO: optimize writes
         self.progress_file.seek(0)
         self.progress_file.write(self.progress_data.to_json())
