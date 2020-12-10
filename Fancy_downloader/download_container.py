@@ -52,7 +52,7 @@ class Download_container:
         self._filename = kwargs.get('filename', 'file')
         self.threads = []
 
-        self.statut = ''
+        self.statut: str = ''
         self.custom_status = ""
         self.custom_status_act = False
         self.finishedd = 0

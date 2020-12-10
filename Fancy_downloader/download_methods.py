@@ -22,6 +22,7 @@ def serial_chunked_download(
     *,
     start: int = 0,
     end: int = 0,
+    chunk_id: Optional[int] = 0,
 ) -> bool:
     """Downloads a file using a single connection getting a chunk at a time
     """
@@ -51,13 +52,13 @@ def serial_chunked_download(
     else:
         # coming from serial_parralel_chunked
         if d_obj.split_size != -1:
-                nb_split = int(d_obj.size / d_obj.split_size) + 1
+            nb_split = int(d_obj.size / d_obj.split_size) + 1
         else:
-                nb_split = d_obj.nb_split
+            nb_split = d_obj.nb_split
         splits = utils.split(end - start, nb_split, start)
 
     for split in splits:
-        get_chunk(d_obj.url, split, d_obj, 0, session)
+        get_chunk(d_obj.url, split, d_obj, chunk_id, session)
         if d_obj.has_error or d_obj.is_stopped():
             return False
 
@@ -145,15 +146,15 @@ def serial_parralel_chunked_download(
         splits = utils.split(d_obj.size - 1, d_obj.nb_split)
         # das ok
         d_obj.init_file([Chunk(s.start, s.end, -1) for s in splits])
-        d_obj.init_file()
+        # d_obj.init_file()
 
     threads = []
     end_action1 = None
-    for split in splits:
+    for i, split in enumerate(splits):
         t = threading.Thread(
             target=serial_chunked_download,
             args=(d_obj, end_action1, session),
-            kwargs={'start': split.start, 'end': split.end},
+            kwargs={'start': split.start, 'end': split.end, 'chunk_id': i},
         )
         t.start()
         threads.append(t)
