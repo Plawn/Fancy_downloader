@@ -167,7 +167,6 @@ class Download:
 
     def resume(self) -> None:
         if self.status != Status.DOWNLOADING:
-            self.status = Status.DOWNLOADING
             self.event.clear()
             self.download()
 

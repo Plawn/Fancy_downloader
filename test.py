@@ -16,7 +16,7 @@ def md5(fname: str):
     return hash_md5.hexdigest()
 
 
-with_fake_user = False
+with_fake_user = True
 
 url = 'https://download01.logi.com/web/ftp/pub/techsupport/gaming/lghub_installer.zip'
 md5_for_url = "301c7b5f09b373ffc55e38f75c2e4027"
