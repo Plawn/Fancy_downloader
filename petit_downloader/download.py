@@ -191,6 +191,7 @@ class Download:
         self.__filename = name
 
     def download(self, action: Optional[Action] = None):
+        self.status = Status.DOWNLOADING
         self.download_method(
             d_obj=self,
             end_action=action,
