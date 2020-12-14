@@ -62,11 +62,11 @@ def serial_chunked_download(
         get_chunk(d_obj.url, split, d_obj, chunk_id, session)
         if d_obj.has_error or d_obj.is_stopped():
             return False
-
-    if end_action is not None:
-        end_action()
-    if end == 0 and start == 0:
-        d_obj.finish()
+    if not d_obj.is_paused():
+        if end_action is not None:
+            end_action()
+        if end == 0 and start == 0:
+            d_obj.finish()
     return True
 
 
@@ -97,11 +97,12 @@ def parralel_chunked_download(
     for t in threads:
         t.join()
 
-    if d_obj.has_error:
-        return False
-    if end_action is not None:
-        end_action()
-    d_obj.finish()
+    if not d_obj.is_paused():
+        if d_obj.has_error:
+            return False
+        if end_action is not None:
+            end_action()
+        d_obj.finish()
     return True
 
 
@@ -125,9 +126,10 @@ def basic_download(
         d_obj.init_file()
         split = Split(progress_data.chunks[0].last, d_obj.size - 1)
     get_chunk(d_obj.url, split, d_obj, 0, session)
-    if end_action is not None:
-        end_action()
-    d_obj.finish()
+    if not d_obj.is_paused():
+        if end_action is not None:
+            end_action()
+        d_obj.finish()
     return True
 
 
@@ -161,13 +163,13 @@ def serial_parralel_chunked_download(
 
     for t in threads:
         t.join()
-
-    if d_obj.has_error:
-        return False
-    if end_action != None:
-        end_action()
-    d_obj.finish()
-    return False
+    if not d_obj.is_paused():
+        if d_obj.has_error:
+            return False
+        if end_action != None:
+            end_action()
+        d_obj.finish()
+    return True
 
 
 methods = {
