@@ -42,10 +42,10 @@ def get_size(url: str, session: Optional[requests.Session] = None) -> Tuple[int,
     return size, res
 
 
-def split(size: int, chunks_nb: int, offset: int = 0) -> List[Split]:
+def split(end: int, chunks_nb: int, offset: int = 0) -> List[Split]:
     if chunks_nb == 1:
-        return [Split(0, size)]
-    chunk_size = size // chunks_nb
+        return [Split(0, end)]
+    chunk_size = (end - offset) // chunks_nb
     l = [(
         0,
         chunk_size
@@ -56,12 +56,11 @@ def split(size: int, chunks_nb: int, offset: int = 0) -> List[Split]:
     )
     l.append((
         (chunks_nb - 1) * chunk_size,
-        size
+        (end - offset)
     ))
     return [
-        Split(start + offset, end + offset) for start, end in l
+        Split(start + offset, end_ + offset) for start, end_ in l
     ]
-
 
 # TODO: clean this
 def prepare_name(url: str) -> str:

@@ -56,7 +56,7 @@ def serial_chunked_download(
             nb_split = int(d_obj.size / d_obj.split_size) + 1
         else:
             nb_split = d_obj.nb_split
-        splits = utils.split(end - start, nb_split, start)
+        splits = utils.split(end, nb_split, start)
 
     for split in splits:
         get_chunk(d_obj.url, split, d_obj, chunk_id, session)

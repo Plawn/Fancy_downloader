@@ -16,7 +16,7 @@ def md5(fname: str):
     return hash_md5.hexdigest()
 
 
-
+with_fake_user = False
 
 url = 'https://download01.logi.com/web/ftp/pub/techsupport/gaming/lghub_installer.zip'
 md5_for_url = "301c7b5f09b373ffc55e38f75c2e4027"
@@ -32,16 +32,20 @@ d = dl.Download(url, 'test.zip', '', sys.argv[1])
 b.use_progress(d.get_progression)
 
 def fake_user():
-    time.sleep(5)
+    time.sleep(2)
     d.pause()
     time.sleep(5)
     d.resume()
 
-threading.Thread(target=fake_user).start()
+if with_fake_user:
+    threading.Thread(target=fake_user).start()
+
 d.download()
 
+if with_fake_user:
+    time.sleep(20)
 
-time.sleep(20)
+
 print(f'time elapsed: {time.time() - started_at} s')
 b.finish()
 
