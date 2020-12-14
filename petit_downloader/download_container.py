@@ -104,7 +104,7 @@ class DownloadContainer:
     def stop(self):
         self.statut = Status.STOPPED
         for dl in self.downloads:
-            dl.stop()
+            dl.cancel()
 
     def pause(self):
         self.statut = Status.PAUSED
