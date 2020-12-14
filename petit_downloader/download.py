@@ -154,13 +154,21 @@ class Download:
     def update(self, progress: float) -> None:
         self.progress = progress
 
+    def slow(self) -> None:
+        self.status = Status.SLOW
+
     def pause(self) -> None:
         self.status = Status.PAUSED
+        self.file.close()
+        self.progress_file.close()
+        self.event.set()
 
     def resume(self) -> None:
         self.status = Status.DOWNLOADING
+        self.event.clear()
+        self.download()
 
-    def stop(self) -> None:
+    def cancel(self) -> None:
         self.status = Status.STOPPED
         self.file.close()
         self.progress_file.close()
@@ -209,6 +217,8 @@ class Download:
 
 
 def from_save(d: dict) -> Download:
+    """Loads a previous download from a save
+    """
     data: DownloadProgressSave = DownloadProgressSave.from_dict(d)
     # TODO: handle download folder
     dl = Download(data.url, data.filename, data.name,

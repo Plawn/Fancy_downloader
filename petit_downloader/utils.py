@@ -1,9 +1,9 @@
 from __future__ import annotations
+from petit_downloader.constants import Status
 
 import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, TYPE_CHECKING, Tuple
-from functools import lru_cache
 import requests
 
 if TYPE_CHECKING:
@@ -101,7 +101,7 @@ def get_and_retry(
             if errors == MAX_RETRY:
                 print('Download canceled')
                 d_obj.has_error = True
-                d_obj.stop()
+                d_obj.cancel()
                 raise Exception("Error max retry")
 
 
@@ -118,9 +118,9 @@ def get_chunk(
     response = get_and_retry(url, split, d_obj, session)
     at = split.start
     for data in response.iter_content(chunk_size=d_obj.chunk_size):
-        if not d_obj.is_stopped():
+        if not d_obj.is_stopped() and not d_obj.is_paused():
             at = d_obj.write_at(at, data, part_id)
-            if d_obj.is_paused():
+            if d_obj.status == Status.SLOW:
                 d_obj.event.wait(d_obj.pause_time)
         else:
             return False

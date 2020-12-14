@@ -15,7 +15,7 @@ DEFAULT_USER_AGENT = {
 
 class Status(Enum):
     FINISHED = 'FINISHED'
-    DONE = 'DONE'
     PAUSED = 'PAUSED'
     DOWNLOADING = 'DOWNLOADING'
     STOPPED = 'STOPPED'
+    SLOW = 'SLOW'
