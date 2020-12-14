@@ -5,7 +5,7 @@ with open('readme.md', 'r') as f :
 
 setup(
     name='petit_downloader',
-    version='0.1.5',
+    version='0.1.6',
     description='Download files in an easier way',
     packages=['petit_downloader'],
     url='https://github.com/Plawn/petit_downloader',
