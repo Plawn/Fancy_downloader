@@ -8,7 +8,7 @@ setup(
     version='0.1.5',
     description='Download files in an easier way',
     packages=['petit_downloader'],
-    url='https://github.com/Plawn/Fancy_Downloader',
+    url='https://github.com/Plawn/petit_downloader',
     license='apache-2.0',
     author='Plawn',
     author_email='plawn.yay@gmail.com',

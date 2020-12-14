@@ -147,9 +147,10 @@ class Download:
         return 0
 
     def finish(self):
-        self.status = Status.FINISHED
-        self.file.close()
-        self.progress_file.close()
+        if self.status != Status.FINISHED:
+            self.status = Status.FINISHED
+            self.file.close()
+            self.progress_file.close()
 
     def update(self, progress: float) -> None:
         self.progress = progress
@@ -158,21 +159,24 @@ class Download:
         self.status = Status.SLOW
 
     def pause(self) -> None:
-        self.status = Status.PAUSED
-        self.file.close()
-        self.progress_file.close()
-        self.event.set()
+        if self.status != Status.PAUSED:
+            self.status = Status.PAUSED
+            self.file.close()
+            self.progress_file.close()
+            self.event.set()
 
     def resume(self) -> None:
-        self.status = Status.DOWNLOADING
-        self.event.clear()
-        self.download()
+        if self.status != Status.DOWNLOADING:
+            self.status = Status.DOWNLOADING
+            self.event.clear()
+            self.download()
 
     def cancel(self) -> None:
-        self.status = Status.STOPPED
-        self.file.close()
-        self.progress_file.close()
-        self.event.set()
+        if self.status != Status.STOPPED:
+            self.status = Status.STOPPED
+            self.file.close()
+            self.progress_file.close()
+            self.event.set()
 
     def get_speed(self) -> float:
         if time.time() - self.last_time >= 1:
@@ -191,13 +195,14 @@ class Download:
         self.__filename = name
 
     def download(self, action: Optional[Action] = None):
-        self.status = Status.DOWNLOADING
-        self.download_method(
-            d_obj=self,
-            end_action=action,
-            session=self.session,
-            progress_data=self.progress_data
-        )
+        if self.status != Status.DOWNLOADING:
+            self.status = Status.DOWNLOADING
+            self.download_method(
+                d_obj=self,
+                end_action=action,
+                session=self.session,
+                progress_data=self.progress_data
+            )
 
     def __save_progress(self, at: int, bytes_length: int, chunk_id: int):
         # basic save only for now
